@@ -6,18 +6,33 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 25 Mar 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 25 May 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
-      <title>FanGraphs project WAR - 2018 season</title>
-      <link>/2018/03/25/fangraphs-project-war-2018-season/</link>
-      <pubDate>Sun, 25 Mar 2018 00:00:00 +0000</pubDate>
+      <title>Graphical MLB Standings</title>
+      <link>/2018/05/25/graphical-mlb-standings/</link>
+      <pubDate>Fri, 25 May 2018 00:00:00 +0000</pubDate>
       
-      <guid>/2018/03/25/fangraphs-project-war-2018-season/</guid>
-      <description>Projected standings for 2018 This post blah blah</description>
+      <guid>/2018/05/25/graphical-mlb-standings/</guid>
+      <description>This post extends the previous one on runs-scored and runs-allowed contours to show a prototype for a graphical boxscore. When I look at a tsandings table what I want to see is
+ wins and losses
+ winning percentage - how many wins does this prorate to at 162 G?
+ runs scored and allowed
+ are they beating their pythogorean record? lagging it?
+ are they defense first or offense first?</description>
+    </item>
+    
+    <item>
+      <title>RS and RA contours with ggplot</title>
+      <link>/2018/05/12/rs-and-ra-contours-with-ggplot/</link>
+      <pubDate>Sat, 12 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/05/12/rs-and-ra-contours-with-ggplot/</guid>
+      <description>This post shows how to scrape the current MLB standings and generate a graph of runs scored and runs allowed contours. I will facet the graph according to division, but still compute the contours using all the data. The trick for making this work is to replicate the data, setting a flag for each division, and then using alpha and size aesthetics to hide the non-relevant data.
+Scraping current standings For scraping current standings there are a variety of choices, e.</description>
     </item>
     
     <item>
@@ -35,7 +50,7 @@
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>/1/01/01/</guid>
-      <description>FanGraphs project WAR - 2018 season       code{white-space: pre;} pre:not([class]) { background-color: white; }  if (window.hljs) { hljs.configure({languages: []}); hljs.initHighlightingOnLoad(); if (document.readyState &amp;&amp; document.readyState === &#34;complete&#34;) { window.setTimeout(function() { hljs.initHighlighting(); }, 0); } }  h1 { font-size: 34px; } h1.title { font-size: 38px; } h2 { font-size: 30px; } h3 { font-size: 24px; } h4 { font-size: 18px; } h5 { font-size: 16px; } h6 { font-size: 12px; } .</description>
+      <description>RS and RA contours with ggplot       code{white-space: pre;} pre:not([class]) { background-color: white; }  if (window.hljs) { hljs.configure({languages: []}); hljs.initHighlightingOnLoad(); if (document.readyState &amp;&amp; document.readyState === &#34;complete&#34;) { window.setTimeout(function() { hljs.initHighlighting(); }, 0); } }  h1 { font-size: 34px; } h1.title { font-size: 38px; } h2 { font-size: 30px; } h3 { font-size: 24px; } h4 { font-size: 18px; } h5 { font-size: 16px; } h6 { font-size: 12px; } .</description>
     </item>
     
   </channel>

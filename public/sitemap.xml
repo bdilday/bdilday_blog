@@ -3,8 +3,13 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>/2018/03/25/fangraphs-project-war-2018-season/</loc>
-    <lastmod>2018-03-25T00:00:00+00:00</lastmod>
+    <loc>/2018/05/25/graphical-mlb-standings/</loc>
+    <lastmod>2018-05-25T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/2018/05/12/rs-and-ra-contours-with-ggplot/</loc>
+    <lastmod>2018-05-12T00:00:00+00:00</lastmod>
   </url>
   
   <url>
@@ -17,13 +22,26 @@
   </url>
   
   <url>
+    <loc>/categories/baseball/</loc>
+    <lastmod>2018-05-12T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>/categories/</loc>
+    <lastmod>2018-05-12T00:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   
   <url>
     <loc>/post/</loc>
-    <lastmod>2018-03-25T00:00:00+00:00</lastmod>
+    <lastmod>2018-05-25T00:00:00+00:00</lastmod>
+    <priority>0</priority>
+  </url>
+  
+  <url>
+    <loc>/categories/rstats/</loc>
+    <lastmod>2018-05-12T00:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -34,7 +52,7 @@
   
   <url>
     <loc>/</loc>
-    <lastmod>2018-03-25T00:00:00+00:00</lastmod>
+    <lastmod>2018-05-25T00:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   

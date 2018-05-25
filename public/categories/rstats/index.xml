@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Rstats on graphswithcodeanddata</title>
+    <link>/categories/rstats/</link>
+    <description>Recent content in Rstats on graphswithcodeanddata</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 12 May 2018 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/categories/rstats/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>RS and RA contours with ggplot</title>
+      <link>/2018/05/12/rs-and-ra-contours-with-ggplot/</link>
+      <pubDate>Sat, 12 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/05/12/rs-and-ra-contours-with-ggplot/</guid>
+      <description>This post shows how to scrape the current MLB standings and generate a graph of runs scored and runs allowed contours. I will facet the graph according to division, but still compute the contours using all the data. The trick for making this work is to replicate the data, setting a flag for each division, and then using alpha and size aesthetics to hide the non-relevant data.
+Scraping current standings For scraping current standings there are a variety of choices, e.</description>
+    </item>
+    
+  </channel>
+</rss>

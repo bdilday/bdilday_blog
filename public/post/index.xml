@@ -17,11 +17,11 @@
       <pubDate>Fri, 25 May 2018 00:00:00 +0000</pubDate>
       
       <guid>/2018/05/25/graphical-mlb-standings/</guid>
-      <description>This post extends the previous one on runs-scored and runs-allowed contours to show a prototype for a graphical boxscore. When I look at a tsandings table what I want to see is
+      <description>This post extends the previous one on runs-scored and runs-allowed contours to show a prototype for a graphical standings table. When I look at a standings table what I want to see is
  wins and losses
  winning percentage - how many wins does this prorate to at 162 G?
  runs scored and allowed
- are they beating their pythogorean record? lagging it?
+ are they beating their Pythagorean record? lagging it?
  are they defense first or offense first?</description>
     </item>
     

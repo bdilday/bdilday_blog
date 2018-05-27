@@ -2,9 +2,10 @@ baseurl = "/"
 languageCode = "en-us"
 title = "graphswithcodeanddata"
 theme = "hugo-classic"
-googleAnalytics = ""
+googleAnalytics = "UA-71774734-3"
 disqusShortname = ""
 ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
+math = true
 
 [permalinks]
     post = "/:year/:month/:day/:slug/"
@@ -28,6 +29,7 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
     highlightjsLang = ["r", "yaml"]
     highlightjsTheme = "github"
 
+    math = true
     MathJaxCDN = "//cdn.bootcss.com"
     MathJaxVersion = "2.7.1"
 

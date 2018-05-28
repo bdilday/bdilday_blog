@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home Runs in 1000 PA | graphswithcodeanddata</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+    <header>
+
+  
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-light.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  <nav>
+    <ul>
+      
+      
+      <li class="pull-left ">
+        <a href="/">/home/graphswithcodeanddata</a>
+      </li>
+      
+      
+      <li class="pull-left ">
+        <a href="/about/">~/about</a>
+      </li>
+      
+      
+      <li class="pull-left ">
+        <a href="https://github.com/rstudio/blogdown">~/github</a>
+      </li>
+      
+      
+      <li class="pull-left ">
+        <a href="https://twitter.com/GraphsWithCode">~/twitter</a>
+      </li>
+      
+
+      
+
+    </ul>
+  </nav>
+</header>
+
+  </head>
+
+  <body>
+    <br/>
+
+<div class="article-meta">
+<h1><span class="title">Home Runs in 1000 PA</span></h1>
+
+<h2 class="date">2018/05/27</h2>
+<p class="terms">
+  
+  
+  
+  
+  
+</p>
+</div>
+
+
+
+<main>
+
+
+<p>I recently saw a headline saying Aaron Judge now has the record for quickest to 70 home runs from start of a career. This stat is impressive, but also skewed because Judge started in the majors at age 24, which is fairly late for a superstar. A related question that&rsquo;s interesting to ask is, which players had streaks of 1000 PA or so with 70 HR at the youngest ages?</p>
+
+<h2 id="data">data</h2>
+
+<p>For this I will use the <code>retrosplits</code> repo from Chadwick Bureau. (<a href="https://github.com/chadwickbureau/retrosplits">https://github.com/chadwickbureau/retrosplits</a>)</p>
+
+<p>unlike the retrosheet events data that needs to be processed by the chadwick command line tools before analyzing, these are already in a &ldquo;tidy&rdquo; format. So they&rsquo;re easy to load with a CSV reader, e.g.</p>
+
+<pre><code>library(readr)
+daybyday_original_df = read_csv(
+  sprintf(&quot;%s/retrosplits/daybyday_playing2017.csv&quot;, 
+  PATH_TO_CHADWICK_BUREAU))
+</code></pre>
+
+<p>The column names by default have &lsquo;.&rsquo;s in them which conflicts with the postgres syntax for specifying <code>database.table</code> so it&rsquo;s convenient to replace the dots with underscores.</p>
+
+<pre><code>nms = names(daybyday_original_df)
+nms = str_replace(nms, &quot;\\.&quot;, &quot;_&quot;)
+names(daybyday_original_df) = nms
+</code></pre>
+
+<p>We can repeat for the other years to get the full data set loaded.</p>
+
+<h2 id="game-source"><code>game_source</code></h2>
+
+<p>One caveat with the <code>retrosplits</code> data is in many instances it includes the same game multiple times with a different source, i.e. event vs boxscore. So you first need to choose the &ldquo;primary&rdquo; source to avoid over counting. I did this by choosing event based when available, followed by &ldquo;ded&rdquo; (not sure what it means), and finally falling back to boxscore based.</p>
+
+<pre><code>fix_daybyday = function(daybyday_original_df) {
+
+  gm_evt = daybyday_original_df %&gt;% 
+    filter(game_source == &quot;evt&quot;) %&gt;% 
+    group_by(game_key) %&gt;% summarise() %&gt;% ungroup()
+  
+  gm_ded = daybyday_original_df %&gt;% 
+    filter(game_source == &quot;ded&quot;) %&gt;% 
+    group_by(game_key) %&gt;% summarise() %&gt;% ungroup() %&gt;%
+    anti_join(gm_evt, by=&quot;game_key&quot;)
+  
+  gm_box = daybyday_original_df %&gt;% 
+    filter(game_source == &quot;box&quot;) %&gt;% 
+    group_by(game_key) %&gt;% summarise() %&gt;% ungroup() %&gt;%
+    anti_join(gm_evt, by=&quot;game_key&quot;) %&gt;% 
+    anti_join(gm_ded, by=&quot;game_key&quot;)
+
+  df_evt = daybyday_original_df %&gt;% 
+    inner_join(gm_evt, by=&quot;game_key&quot;) %&gt;% filter(game_source == &quot;evt&quot;)
+  df_ded = daybyday_original_df %&gt;% 
+    inner_join(gm_ded, by=&quot;game_key&quot;) %&gt;% filter(game_source == &quot;ded&quot;)
+  df_box = daybyday_original_df %&gt;% 
+    inner_join(gm_box, by=&quot;game_key&quot;) %&gt;% filter(game_source == &quot;box&quot;)
+
+  dplyr::bind_rows(df_evt, df_ded, df_box)
+}
+</code></pre>
+
+<p>Then, starting from the full and unedited data,</p>
+
+<pre><code>daybyday_primary_df = fix_daybyday(daybyday_original_df)
+</code></pre>
+
+<p>We can validate the process by checking career home runs,</p>
+
+<pre><code>## the wrong way - double counting
+daybyday_original_df %&gt;% group_by(person_key, season_phase) %&gt;% summarise(hr=sum(B_HR)) %&gt;% arrange(-hr)
+# A tibble: 25,341 x 3
+# Groups:   person_key [16,579]
+   person_key season_phase    hr
+   &lt;chr&gt;      &lt;chr&gt;        &lt;int&gt;
+ 1 ruthb101   R             1119
+ 2 foxxj101   R              993
+ 3 ott-m101   R              935
+ 4 gehrl101   R              912
+ 5 aaroh101   R              775
+ 6 willt103   R              766
+ 7 bondb001   R              762
+ 8 rodra001   R              696
+ 9 maysw101   R              682
+10 dimaj101   R              674
+# ... with 25,331 more rows
+</code></pre>
+
+<pre><code>## the right way - single counting
+daybyday_primary_df %&gt;% 
+  group_by(person_key, season_phase) %&gt;% 
+  summarise(hr=sum(B_HR)) %&gt;% 
+  arrange(-hr)
+
+# A tibble: 25,341 x 3
+# Groups:   person_key [16,579]
+   person_key season_phase    hr
+   &lt;chr&gt;      &lt;chr&gt;        &lt;int&gt;
+ 1 bondb001   R              762
+ 2 aaroh101   R              755
+ 3 ruthb101   R              714
+ 4 rodra001   R              696
+ 5 maysw101   R              660
+ 6 grifk002   R              630
+ 7 pujoa001   R              614
+ 8 thomj002   R              612
+ 9 sosas001   R              609
+10 robif103   R              586
+# ... with 25,331 more rows
+</code></pre>
+
+<h2 id="filter-the-data">filter the data</h2>
+
+<p>I&rsquo;m interested in players that had 70 HR in 1000 PA or so before age 27 or so. First I&rsquo;ll filter the day-by-day data so there&rsquo;s a smaller set to search through.</p>
+
+<p>First, only players with at least 70 HR in total</p>
+
+<pre><code>df_filtered = daybyday_primary_df %&gt;% 
+  group_by(person_key) %&gt;% 
+  summarise(hr=sum(B_HR)) %&gt;% 
+  filter(hr&gt;=70) %&gt;% ungroup()
+</code></pre>
+
+<p>Now join this list of players to the <code>Master</code> table from <code>Lahman</code> to get date-of-birth, and also grab the player&rsquo;s full name while we&rsquo;re at it.</p>
+
+<pre><code>df_dob = df_filtered %&gt;% 
+  left_join(Lahman::Master, by=c(&quot;person_key&quot; = &quot;retroID&quot;)) %&gt;% 
+  mutate(nameFull = paste(nameFirst, nameLast)) %&gt;% 
+  select(person_key, birthDate, nameFull)
+</code></pre>
+
+<p>Append an age column to the day-by-day data,</p>
+
+<pre><code>df_ages = daybyday_primary_df %&gt;% 
+  inner_join(df_dob, by=&quot;person_key&quot;) %&gt;% 
+  mutate(age_in_days=as.integer(game_date - birthDate))
+</code></pre>
+
+<p>Now we can filter the list even further to those players that hit at least 70 home runs before age 27 or so.</p>
+
+<pre><code>df_lt27 = df_ages %&gt;%
+  filter(age_in_days &lt; 10000) %&gt;% 
+  group_by(person_key) %&gt;% 
+  summarise(hr=sum(B_HR)) %&gt;% 
+  filter(hr&gt;=70) %&gt;% ungroup() %&gt;% 
+  inner_join(df_ages, by=&quot;person_key&quot;) %&gt;% 
+  filter(age_in_days &lt; 10000) %&gt;% 
+  group_by(person_key) %&gt;% 
+  arrange(age_in_days) %&gt;% 
+  mutate(shr=cumsum(B_HR), 
+           spa=cumsum(ifelse(is.na(B_PA), B_AB+B_BB, B_PA))) %&gt;% 
+  select(person_key, nameFull, age_in_days, shr, spa)
+</code></pre>
+
+<p>The following function will take the <code>df_lt27</code> data frame, compute running plate-appearance and home run totals up to age 10000 days, and fill in the blanks using the <code>zoo</code> package. It also computes the lagged difference in career home runs over 1000 PA increments, or in other words the cumulative number of home runs in sliding windows of 1000 PA.</p>
+
+<pre><code>library(zoo)
+
+
+fill_in = function(dfX, pk) {
+  tmp = dfX[dfX$person_key == pk,]
+
+  first_row = min(tmp$spa)
+  last_row = max(tmp$spa)
+  spa_seq = seq(first_row, last_row, 1)
+  spa_df = data.frame(spa=spa_seq)
+  mg_df = spa_df %&gt;% left_join(tmp, by=&quot;spa&quot;)
+  fill_df = zoo::na.locf(mg_df) %&gt;% 
+    mutate(age_in_days = as.integer(age_in_days),
+           shr=as.integer(shr),
+           spa=as.integer(spa)) %&gt;% 
+    select(person_key, nameFull, age_in_days, spa, shr)
+  
+  # the lagged differences over 1000 PA
+  lag_diff = diff(fill_df$shr, 1000)
+  fill_df$lag_diff = NA
+  fill_df[1001:nrow(fill_df),]$lag_diff = lag_diff
+  fill_df[1001:nrow(fill_df),]
+}
+
+</code></pre>
+
+<p>To illustrate, here&rsquo;s the result for Babe Ruth.</p>
+
+<pre><code>tt = fill_in(df_lt27, &quot;ruthb101&quot;)
+tt %&gt;% arrange(-lag_diff) %&gt;% head(4)
+
+  person_key  nameFull age_in_days  spa shr lag_diff
+1   ruthb101 Babe Ruth        9682 2384 146       95
+2   ruthb101 Babe Ruth        9682 2385 146       95
+3   ruthb101 Babe Ruth        9682 2386 146       95
+4   ruthb101 Babe Ruth        9681 2379 145       94
+</code></pre>
+
+<pre><code>tt %&gt;% ggplot(aes(x=age_in_days, y = lag_diff)) + 
+  geom_line() + theme_minimal(base_size=16)
+</code></pre>
+
+<p>Now collect it for all persons.</p>
+
+<pre><code>persons = unique(df_lt27$person_key)
+
+all_persons = dplyr::bind_rows(
+  lapply(persons, function(pk) {
+    fill_in(df_lt27, pk)
+  })
+  )
+</code></pre>
+
+<p>How many total rows?</p>
+
+<pre><code>nrow(all_persons)
+[1] 1172276
+</code></pre>
+
+<p>Which players had the greatest 1000 PA stretches?</p>
+
+<pre><code>all_persons %&gt;% 
+  group_by(person_key, nameFull) %&gt;% 
+  summarise(m=max(lag_diff, na.rm=TRUE)) %&gt;% 
+  arrange(-m)
+
+# A tibble: 387 x 3
+# Groups:   person_key [387]
+   person_key nameFull             m
+   &lt;chr&gt;      &lt;chr&gt;            &lt;dbl&gt;
+ 1 ruthb101   Babe Ruth           95
+ 2 gonzj002   Juan Gonzalez       82
+ 3 rodra001   Alex Rodriguez      82
+ 4 foxxj101   Jimmie Foxx         81
+ 5 howar001   Ryan Howard         80
+ 6 killh102   Harmon Killebrew    79
+ 7 kiner101   Ralph Kiner         79
+ 8 mantm101   Mickey Mantle       79
+ 9 grifk002   Ken Griffey         78
+10 marir101   Roger Maris         78
+# ... with 377 more rows
+</code></pre>
+
+<p>Although it&rsquo;s busy, make a graph of all players,</p>
+
+<pre><code>all_persons %&gt;% 
+  filter(!is.na(lag_diff)) %&gt;% 
+  ggplot(aes(x=age_in_days/365.25, y=lag_diff, group=person_key)) +
+  geom_line(size=0.25) + 
+  theme_minimal(base_size = 16) + 
+  labs(x=&quot;Age&quot;, y=&quot;HR in 1000 PA stretches&quot;)
+</code></pre>
+
+<p>The few features that stand out are, the player with about 60 home runs at age 21 or so,</p>
+
+<pre><code>all_persons %&gt;% 
+  filter(age_in_days &lt; 365.25 * 22, lag_diff&gt; 60) %&gt;% 
+  arrange(age_in_days) %&gt;% head(3)
+
+  person_key nameFull age_in_days  spa shr lag_diff
+1   ott-m101  Mel Ott        7772 1605  75       61
+2   ott-m101  Mel Ott        7772 1606  75       61
+3   ott-m101  Mel Ott        7772 1607  75       61
+</code></pre>
+
+<p>the player who had about 70 at age 23 or so,</p>
+
+<pre><code>all_persons %&gt;% 
+  filter(age_in_days &lt; 365.25 * 23.5, lag_diff&gt; 72) %&gt;% 
+  arrange(age_in_days) %&gt;% head(3) 
+
+  person_key   nameFull age_in_days  spa shr lag_diff
+1   hornb001 Bob Horner        8389 1103  77       73
+2   hornb001 Bob Horner        8389 1104  77       73
+3   hornb001 Bob Horner        8389 1105  77       73
+</code></pre>
+
+<p>the player with 80 or so around age 24,</p>
+
+<pre><code>all_persons %&gt;% filter(age_in_days &lt; 365.25 * 24.5, lag_diff&gt; 80) %&gt;% arrange(age_in_days)  %&gt;% head(3)
+
+  person_key      nameFull age_in_days  spa shr lag_diff
+1   gonzj002 Juan Gonzalez        8726 1937 118       81
+2   gonzj002 Juan Gonzalez        8726 1938 118       81
+3   gonzj002 Juan Gonzalez        8726 1939 118       81
+</code></pre>
+
+<p>and of course the one with more than 90 at age 26, who we already know,</p>
+
+<pre><code>all_persons %&gt;% filter(age_in_days &lt; 365.25 * 27.5, lag_diff&gt; 90) %&gt;% arrange(-lag_diff, age_in_days)  %&gt;% head(3)
+
+  person_key  nameFull age_in_days  spa shr lag_diff
+1   ruthb101 Babe Ruth        9682 2384 146       95
+2   ruthb101 Babe Ruth        9682 2385 146       95
+3   ruthb101 Babe Ruth        9682 2386 146       95
+</code></pre>
+
+<p>What exactly is the list of players with 70 or more?</p>
+
+<pre><code>all_persons %&gt;% 
+  group_by(person_key, nameFull) %&gt;% 
+  summarise(m=max(lag_diff, na.rm=TRUE)) %&gt;% 
+  ungroup() %&gt;% arrange(-m) %&gt;% 
+  filter(m&gt;=70) %&gt;% 
+  select(nameFull, m) %&gt;% as.data.frame()
+  
+            nameFull  m
+1          Babe Ruth 95
+2      Juan Gonzalez 82
+3     Alex Rodriguez 82
+4        Jimmie Foxx 81
+5        Ryan Howard 80
+6   Harmon Killebrew 79
+7        Ralph Kiner 79
+8      Mickey Mantle 79
+9        Ken Griffey 78
+10       Roger Maris 78
+11    Rocky Colavito 76
+12     Manny Ramirez 76
+13      Jose Canseco 74
+14        Bob Horner 73
+15    Willie McCovey 73
+16      Frank Thomas 73
+17 Vladimir Guerrero 72
+18     Eddie Mathews 72
+19     Albert Pujols 72
+20       Chris Davis 71
+21    Carlos Delgado 70
+22 Giancarlo Stanton 70
+23         Rudy York 70
+</code></pre>
+
+<p>Pretty good company for Judge!</p>
+
+</main>
+
+    <footer>
+      
+<script>
+(function() {
+  function center_el(tagName) {
+    var tags = document.getElementsByTagName(tagName), i, tag;
+    for (i = 0; i < tags.length; i++) {
+      tag = tags[i];
+      var parent = tag.parentElement;
+      
+      if (parent.childNodes.length === 1) {
+        
+        if (parent.nodeName === 'A') {
+          parent = parent.parentElement;
+          if (parent.childNodes.length != 1) continue;
+        }
+        if (parent.nodeName === 'P') parent.style.textAlign = 'center';
+      }
+    }
+  }
+  var tagNames = ['img', 'embed', 'object'];
+  for (var i = 0; i < tagNames.length; i++) {
+    center_el(tagNames[i]);
+  }
+})();
+</script>
+
+<script src="//yihui.name/js/math-code.js"></script>
+<script async
+src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+
+      
+    </footer>
+  </body>
+</html>
+

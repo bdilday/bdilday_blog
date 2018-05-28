@@ -6,10 +6,19 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 25 May 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 27 May 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Home Runs in 1000 PA</title>
+      <link>/2018/05/27/home-runs-in-1000-pa/</link>
+      <pubDate>Sun, 27 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/05/27/home-runs-in-1000-pa/</guid>
+      <description>I recently saw a headline saying Aaron Judge now has the record for quickest to 70 home runs from start of a career. This stat is impressive, but also skewed because Judge started in the majors at age 24, which is fairly late for a superstar. A related question that&amp;rsquo;s interesting to ask is, which players had streaks of 1000 PA or so with 70 HR at the youngest ages?</description>
+    </item>
     
     <item>
       <title>Graphical MLB Standings</title>

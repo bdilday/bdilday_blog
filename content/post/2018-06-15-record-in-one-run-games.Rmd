@@ -9,11 +9,11 @@ output:
   blogdown::html_page
 ---
 
-So far this season the Seattle Mariners have won a historically high numeber of one-run games. As of this writing they are `21 - 9`, and `1/2` game up on the Astros depsite having a run-differntial of about `100` runs less. This post looks at records in onr-run games obver the years.
+So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are `21 - 9`, and `1/2` game up on the Astros despite having a run-differential of about `100` runs less. This post looks at records in one-run games over the years.
 
 ## Libraries
 
-``` {r}
+``` {r, message=FALSE}
 library(RPostgres)
 library(DBI)
 library(dplyr)
@@ -93,8 +93,8 @@ runs_diff_plot = function(dfX, title='') {
 ```
 
 ``` {r, fig.height=8, fig.width=8, fig.units="in"}
-p = runs_diff_plot(top12_wins1)
-print(p, 'score differential - top 12 1-run win-pct teams')
+p = runs_diff_plot(top12_wins1, 'score differential - top 12 1-run win-pct teams')
+print(p)
 ```
 
 Highest win percentage in 1-run games
@@ -149,7 +149,7 @@ print(p)
 ```
 
 
-Finally, compare winning percentage in 1-run games to winning percentage in non-on-run games
+Finally, compare winning percentage in 1-run games to winning percentage in non-one-run games
 
 ``` {r, fig.height=8, fig.width=8, fig.units="in"}
 p = records %>% 

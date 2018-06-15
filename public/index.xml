@@ -17,8 +17,8 @@
       <pubDate>Fri, 15 Jun 2018 00:00:00 +0000</pubDate>
       
       <guid>/2018/06/15/record-in-one-run-games/</guid>
-      <description>So far this season the Seattle Mariners have won a historically high numeber of one-run games. As of this writing they are 21 - 9, and 1/2 game up on the Astros depsite having a run-differntial of about 100 runs less. This post looks at records in onr-run games obver the years.
-Libraries library(RPostgres) library(DBI) library(dplyr) ## ## Attaching package: &amp;#39;dplyr&amp;#39; ## The following objects are masked from &amp;#39;package:stats&amp;#39;: ## ## filter, lag ## The following objects are masked from &amp;#39;package:base&amp;#39;: ## ## intersect, setdiff, setequal, union library(ggplot2)  Data I’m using the game data from retrosheet.</description>
+      <description>So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are 21 - 9, and 1/2 game up on the Astros despite having a run-differential of about 100 runs less. This post looks at records in one-run games over the years.
+Libraries library(RPostgres) library(DBI) library(dplyr) library(ggplot2) library(magrittr) # for the in-place assignment, %&amp;lt;&amp;gt;% library(ggrepel)  Data I’m using the game data from retrosheet.</description>
     </item>
     
     <item>

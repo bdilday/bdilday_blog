@@ -1,0 +1,189 @@
+---
+title: Record in One-run Games
+author: ~
+date: '2018-06-15'
+slug: record-in-one-run-games
+categories: []
+tags: []
+output:
+  blogdown::html_page
+---
+
+So far this season the Seattle Mariners have won a historically high numeber of one-run games. As of this writing they are `21 - 9`, and `1/2` game up on the Astros depsite having a run-differntial of about `100` runs less. This post looks at records in onr-run games obver the years.
+
+## Libraries
+
+``` {r}
+library(RPostgres)
+library(DBI)
+library(dplyr)
+library(ggplot2)
+library(magrittr) # for the in-place assignment, %<>%
+library(ggrepel)
+```
+
+## Data 
+
+I'm using the `game` data from retrosheet. 
+
+``` {r}
+conn <- dbConnect(RPostgres::Postgres(), 
+                  password=Sys.getenv("PSQL_PASS"), 
+                  user=Sys.getenv("PSQL_USER"), 
+                  port=Sys.getenv("PSQL_PORT"), 
+                  dbname='retrosheet')
+df1 = dbGetQuery(conn, "select * from game ")
+```
+
+Make two data frames, one where the home team is "the team" and away team is "the opponent", and visa versa, then `rbind` them into a single data frame.
+
+``` {r}
+dfA = df1 %>% 
+  select(game_id, year_id, team_id=away_team_id, opp_id=home_team_id, team_score=away_score_ct, opp_score=home_score_ct) 
+dfH = df1 %>% 
+  select(game_id, year_id, team_id=home_team_id, opp_id=away_team_id, team_score=home_score_ct, opp_score=away_score_ct)
+dfX = dplyr::bind_rows(dfA, dfH)
+```
+
+
+Compute run differential and an indicator for one-run games.
+
+``` {r}
+games = dfX %>% mutate(sc_diff = team_score - opp_score, 
+                       is_onerun = abs(sc_diff) == 1, 
+                       is_win = team_score > opp_score)
+```
+
+
+
+``` {r}
+records = games %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(games=n(), 
+            wins=sum(is_win), 
+            one_run_games=sum(is_onerun), 
+            one_run_wins=sum(is_onerun * is_win), 
+            wpct=wins/games, 
+            wpct_onerun=one_run_wins/one_run_games) %>% 
+  ungroup()
+```
+
+Let's see which teams had the most one-run wins
+
+``` {r}
+top12_wins1 = records %>% 
+  arrange(-one_run_wins) %>% 
+  head(12) 
+  
+top12_wins1 %>% knitr::kable()
+```
+
+``` {r}
+runs_diff_plot = function(dfX, title='') {
+  dfX %>% 
+    dplyr::inner_join(games, by=c("team_id", "year_id")) %>% 
+    mutate(name=paste(team_id, year_id)) %>% 
+    ggplot(aes(x=sc_diff)) + 
+    geom_histogram(binwidth = 1) +
+    facet_wrap(~name, ncol=3) + 
+    theme_minimal(base_size = 16) + 
+    labs(x='score differential', 
+         title=title)  
+}
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = runs_diff_plot(top12_wins1)
+print(p, 'score differential - top 12 1-run win-pct teams')
+```
+
+Highest win percentage in 1-run games
+
+``` {r}
+top12_wpct1 = records %>% 
+  arrange(-wpct_onerun) %>% 
+  head(12) 
+  
+top12_wpct1 %>% knitr::kable()
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = runs_diff_plot(top12_wpct1, 'score differential - top 12 1-run win-pct teams')
+print(p)
+```
+
+## record in non-one-run games
+
+``` {r}
+records %<>% mutate(
+  non_onerun_wins = wins-one_run_wins,
+  non_onerun_games = games-one_run_games,
+  wpct_non_onerun = non_onerun_wins / non_onerun_games
+  )
+```
+
+Top 12 in **non-one-run games**
+
+``` {r}
+top12_winX = records %>% 
+  arrange(-non_onerun_wins) %>% 
+  head(12)
+top12_winX %>% knitr::kable()
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = runs_diff_plot(top12_winX, 'score differential - top 12 non-1-run win teams')
+print(p)
+```
+
+``` {r}
+top12_wpctX = records %>% 
+  arrange(-wpct_non_onerun) %>% 
+  head(12)
+top12_wpctX %>% knitr::kable()
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = runs_diff_plot(top12_wpctX,  'score differential - top 12 non-1-run win-pct teams')
+print(p)
+```
+
+
+Finally, compare winning percentage in 1-run games to winning percentage in non-on-run games
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = records %>% 
+  ggplot(aes(x=wpct_non_onerun, y=wpct_onerun)) + 
+  geom_point() + 
+  theme_minimal(base_size = 16) + 
+  geom_hline(yintercept = 0.5, size=0.5, color='steelblue') + 
+  geom_vline(xintercept = 0.5, size=0.5, color='steelblue') + 
+  labs(x="Win Pct. - Non 1-run", y="Win Pct. - 1-run")
+print(p)
+``` 
+
+Label the ones that are on the edges
+
+``` {r}
+records_quads = records %>% 
+  mutate(r2=(wpct_onerun - 0.5)**2 + (wpct_non_onerun - 0.5)**2, 
+         quad=as.integer(wpct_non_onerun >= 0.5) + 2 * as.integer(wpct_onerun >= 0.5))
+```
+
+
+``` {r}
+lab_df = records_quads %>% 
+  group_by(quad) %>% 
+  arrange(-r2) %>% 
+  mutate(r2_rank=row_number()) %>% 
+  filter(r2_rank <= 10) %>% 
+  ungroup() %>% 
+  mutate(name=paste(team_id, year_id))
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p2 = p + 
+  geom_text_repel(data = lab_df, aes(x=wpct_non_onerun, y=wpct_onerun, label=name))
+print(p2)
+``` 

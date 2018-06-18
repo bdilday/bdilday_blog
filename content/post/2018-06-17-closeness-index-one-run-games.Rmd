@@ -1,0 +1,380 @@
+---
+title: Closeness Index - One-run games++
+author: ~
+date: '2018-06-17'
+slug: closeness-index-one-run-games
+categories: []
+tags: []
+output:
+  blogdown::html_page
+---
+
+The [last post](../blah) looked at records in one-run games. This topic is in the zeitgeist currently since because of the Mariners high number of wins. It turns out that Baseball Musings offered a alternative way of thinking about it some 8 years ago. The overarching idea here is that one-run games are kind of a proxy for tight games - but there's a difference between a game that's not close, and then the bullpen blows a lead and it ends up at 1-run, versus a game that's close the whole way. The second type is qualitatively different and if we're going to look for team makeups that lead to success in one-run games, tells us more about how strategy might factor in. 
+
+To reemphasise what the technical idea is, you compute a closeness index for a game by taking the average of the absolute value of the score differential at the end of each half inning. So there's a lower limit for a regulation 9-inning game of 1/18 = 0.056.
+
+This post will use this definition for closeness index and expnad on the wrok for Baseball Musings.
+
+## libraries
+
+``` {r, message=FALSE}
+library(RPostgres)
+library(DBI)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(tidyr)
+```
+
+## data
+
+I'll use the retrosheet event-level data. This is overkill in a way since I only need scores at the end of half-innings, but it's the best way I know how to get that.
+
+In Baseball Musings look at closeness, he looked exclusively at 1974+, where the records are 100% complete. I'm going to look at 1955+ since I'm looking mainly for outliers and overall trends and am not overly concernbed with completeness ; a maxim I generally live by is don;t let the perfect be the enem,y of the good.
+
+connect to the database
+``` {r}
+conn <- dbConnect(RPostgres::Postgres(), 
+                  password=Sys.getenv("PSQL_PASS"), 
+                  user=Sys.getenv("PSQL_USER"), 
+                  port=Sys.getenv("PSQL_PORT"), 
+                  dbname='retrosheet')
+```
+
+
+Grab data since 1955, filtering to only include end of innings
+
+``` {r}
+  ev = dbGetQuery(conn, "select * from event where year_id > 1954 and inn_end_fl = \'t\'")
+```
+
+Process the data to 
+
+* runs 
+
+``` {r}
+process_data = function(ev) {
+  ev2 = ev %>% 
+    mutate(home_score = home_score_ct + ifelse(bat_home_id==1, event_runs_ct, 0), 
+           away_score = away_score_ct + ifelse(bat_home_id==0, event_runs_ct, 0))
+  evA = ev2 %>% 
+    select(game_id, inn_ct, year_id, bat_home_id, 
+           team_id=home_team_id, opp_id=away_team_id, 
+           team_score=home_score, opp_score=away_score)
+  evH = ev2 %>% 
+    select(game_id, inn_ct, year_id, bat_home_id,
+           team_id=away_team_id, opp_id=home_team_id, 
+           team_score=away_score, opp_score=home_score)
+  
+  evX = dplyr::bind_rows(evA, evH) %>% 
+    mutate(close_idx = abs(team_score - opp_score))
+
+}
+```
+
+``` {r}
+evX = process_data(ev)
+```
+
+add the wins 
+
+``` {r}
+
+get_wins = function(evX) {
+  win_df = evX %>% 
+    group_by(game_id) %>% 
+    mutate(mx = max(inn_ct)) %>% 
+    filter(inn_ct==mx) %>% 
+    arrange(-bat_home_id) %>% 
+    mutate(ridx= row_number()) %>% 
+    filter(ridx <= 2) %>% mutate(is_win= team_score > opp_score) %>% 
+    select(game_id, team_id, is_win)
+  
+  win_df %>% inner_join(evX, by=c("game_id", "team_id")) %>% 
+    group_by(game_id, year_id, team_id) %>% 
+    mutate(closeness_score=mean(close_idx)) %>% ungroup()
+  
+}
+
+```
+
+
+``` {r}
+w = get_wins(evX)
+```
+
+Compute the closeness index for each game 
+
+``` {r}
+w2 = w %>% 
+  group_by(game_id, team_id, is_win, year_id) %>% 
+  summarise(closeness_idx=mean(close_idx)) %>% 
+  ungroup()
+```
+
+
+The distribution of closeness index
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = w2 %>% ggplot(aes(x=closeness_idx)) + 
+  geom_histogram(binwidth = 0.5) + 
+  theme_minimal(base_size = 16)
+print(p)
+```
+
+
+
+The top lowest games
+
+``` {r}
+w2 %>% group_by(game_id) %>% 
+  summarise(closeness_idx=mean(closeness_idx)) %>%
+  arrange(closeness_idx) %>% 
+  filter(closeness_idx < 0.032) %>% 
+  knitr::kable()
+```
+
+Highest 
+
+``` {r}
+w2 %>% group_by(game_id) %>% 
+  summarise(closeness_idx=mean(closeness_idx)) %>%
+  arrange(-closeness_idx) %>% 
+  filter(closeness_idx > 12.6) %>% 
+  knitr::kable()
+```
+
+## seasonal trends
+
+Based on the table above we can see that closeness - as measured by score differential - is related to the run scoring environment. Here's the yearly averages,
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = w2 %>% group_by(year_id) %>% 
+  summarise(closeness_idx = mean(closeness_idx)) %>% 
+  ggplot(aes(x=year_id, y=closeness_idx)) + 
+  geom_point(size=0.5) + 
+  geom_line() + theme_minimal(base_size = 16)
+print(p)
+```
+
+## team records
+
+Fraction of all games that are one-run games
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = w %>% group_by(game_id, year_id, team_id) %>% summarise(team_score=max(team_score), opp_score = max(opp_score)) %>% ungroup() %>% mutate(is1 = abs(team_score - opp_score) == 1) %>% group_by(year_id) %>% summarise(frac1 = mean(is1)) %>% ggplot(aes(x=year_id, y=frac1)) + geom_line()
+print(p)
+```
+
+Based on the above we see that historically "one-run games" occur something like 30% of the time. Here I take the lowest 30% of closeness index as definition of "close games" and see which teams had the most wins and highest win percentage
+
+``` {r}
+close_definition = 0.3
+
+close_percentile_df = w2 %>% 
+  mutate(dummy=1) %>% 
+  group_by(year_id) %>% 
+  arrange(year_id, closeness_idx) %>% 
+  mutate(running = cumsum(dummy), n=n(), c_frac=running / n) %>%
+  ungroup()
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close) %>% 
+  arrange(-w_close) %>% head(20) %>% knitr::kable()
+
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close) %>% 
+  arrange(-wpct_close) %>% head(20) %>% knitr::kable()
+
+```
+
+Let's tighten that up to 20th percentile
+
+``` {r}
+close_definition = 0.2
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close) %>% 
+  arrange(-w_close) %>% head(20) %>% knitr::kable()
+
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close) %>% 
+  arrange(-wpct_close) %>% head(20) %>% knitr::kable()
+
+```
+
+Let's tighten that up to 10th percentile
+
+``` {r}
+close_definition = 0.1
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close) %>% 
+  arrange(-w_close) %>% head(20) %>% knitr::kable()
+
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close) %>% 
+  arrange(-wpct_close) %>% head(20) %>% knitr::kable()
+
+```
+
+Let's try looking at blowouts
+
+``` {r}
+blowout_definition = 0.8
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_blowout = c_frac >= blowout_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_blowout = sum(is_blowout * is_win), 
+            g_blowout = sum(is_blowout), 
+            wpct_blowout = w_blowout/g_blowout) %>% 
+  arrange(-w_blowout) %>% head(20) %>% knitr::kable()
+
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_blowout = c_frac >= blowout_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_blowout = sum(is_blowout * is_win), 
+            g_blowout = sum(is_blowout), 
+            wpct_blowout = w_blowout/g_blowout) %>% 
+  arrange(-wpct_blowout) %>% head(20) %>% knitr::kable()
+
+```
+
+Rachet it up to 90th percentile
+
+``` {r}
+blowout_definition = 0.9
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_blowout = c_frac >= blowout_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_blowout = sum(is_blowout * is_win), 
+            g_blowout = sum(is_blowout), 
+            wpct_blowout = w_blowout/g_blowout) %>% 
+  arrange(-w_blowout) %>% head(20) %>% knitr::kable()
+
+```
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+close_percentile_df %>% 
+  mutate(is_blowout = c_frac >= blowout_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_blowout = sum(is_blowout * is_win), 
+            g_blowout = sum(is_blowout), 
+            wpct_blowout = w_blowout/g_blowout) %>% 
+  arrange(-wpct_blowout) %>% head(20) %>% knitr::kable()
+
+```
+
+``` {r}
+close_definition = 0.2
+
+plot_df = close_percentile_df %>% 
+  mutate(is_close = c_frac <= close_definition) %>% 
+  group_by(year_id, team_id) %>% 
+  summarise(w=sum(is_win), g=n(), 
+            w_close = sum(is_close * is_win), 
+            g_close = sum(is_close), 
+            wpct_close = w_close/g_close, 
+            wpct_other = (w-w_close)/(g - g_close)) %>% 
+  ungroup()
+
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p = plot_df %>% 
+  ggplot(aes(x=wpct_other, y=wpct_close)) + 
+  geom_point() + 
+  theme_minimal(base_size = 16) + 
+  geom_hline(yintercept = 0.5, size=0.5, color='steelblue') + 
+  geom_vline(xintercept = 0.5, size=0.5, color='steelblue') + 
+  labs(x="Win Pct. - Non close games", y="Win Pct. - close games")
+print(p)
+``` 
+
+Label the ones that are on the edges
+
+``` {r}
+records_quads = plot_df %>% 
+  mutate(r2=(wpct_other - 0.5)**2 + (wpct_close - 0.5)**2, 
+         quad=as.integer(wpct_other >= 0.5) + 2 * as.integer(wpct_close >= 0.5))
+```
+
+
+``` {r}
+lab_df = records_quads %>% 
+  group_by(quad) %>% 
+  arrange(-r2) %>% 
+  mutate(r2_rank=row_number()) %>% 
+  filter(r2_rank <= 10) %>% 
+  ungroup() %>% 
+  mutate(name=paste(team_id, year_id))
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+p2 = p + 
+  geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close, label=name))
+print(p2)
+``` 

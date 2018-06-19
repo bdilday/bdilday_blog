@@ -6,10 +6,19 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 15 Jun 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 17 Jun 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Closeness Index - One-run games&#43;&#43;</title>
+      <link>/2018/06/17/closeness-index-one-run-games/</link>
+      <pubDate>Sun, 17 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/06/17/closeness-index-one-run-games/</guid>
+      <description>Introduction The last post looked at records in one-run games. It turns out that Baseball Musings offered a alternative way of thinking about it some 8 years ago. The overarching idea here is that one-run games are kind of a proxy for tight games - but there’s a difference between a game that’s not close, and then the bullpen blows a lead and it ends up at 1-run, versus a game that’s close the whole way.</description>
+    </item>
     
     <item>
       <title>Record in One-run Games</title>

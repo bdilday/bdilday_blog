@@ -375,6 +375,50 @@ lab_df = records_quads %>%
 ``` {r, fig.height=8, fig.width=8, fig.units="in"}
 # base plot with outliers labelled
 p2 = p + 
-  geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close, label=name))
+  geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close-wpct_other, label=name))
 print(p2)
+
+``` 
+
+
+## 
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+# the base plot
+p = plot_df %>% 
+  ggplot(aes(x=wpct_other, y=wpct_close-wpct_other)) + 
+  geom_point() + 
+  theme_minimal(base_size = 16) + 
+  geom_hline(yintercept = 0.0, size=0.5, color='steelblue') + 
+  geom_vline(xintercept = 0.5, size=0.5, color='steelblue') + 
+  labs(x="Win Pct. - Non close games", y="Win Pct.Diff. - (close - non-close)")
+``` 
+
+Label the ones that are on the edges
+
+``` {r}
+records_quads = plot_df %>% 
+  mutate(r2=(abs(wpct_other - 0.5))**1.2 + (abs(wpct_close-wpct_other))**1.4, 
+         quad=as.integer(wpct_other >= 0.5) + 2 * as.integer(wpct_close - wpct_other >= 0.0))
+
+lab_df = records_quads %>% 
+  group_by(quad) %>% 
+  arrange(-r2) %>% 
+  mutate(r2_rank=row_number()) %>% 
+  mutate(i1 = r2_rank <= 12, 
+         i2 = wpct_other>=0.65 & abs(wpct_close-wpct_other)<0.1, 
+         i3=wpct_close-wpct_other>0.29,
+         iX = i1+i2+i3) %>% 
+  filter(iX > 0) %>%
+  ungroup() %>% 
+  mutate(name=paste(team_id, year_id))
+
+```
+
+
+``` {r, fig.height=8, fig.width=8, fig.units="in"}
+# base plot with outliers labelled
+p2 = p + geom_point(data=tdf, aes(color=wins_above_81)) + scale_color_gradient2(high  = 'orange1', low = 'steelblue') + geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close-wpct_other, label=name))
+print(p2)
+
 ``` 

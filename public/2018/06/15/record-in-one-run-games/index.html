@@ -64,36 +64,49 @@
 
 
 <main>
+
+
 <p>So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are <code>21 - 9</code>, and <code>1/2</code> game up on the Astros despite having a run-differential of about <code>100</code> runs less. This post looks at records in one-run games over the years.</p>
-<div id="libraries" class="section level2">
-<h2>Libraries</h2>
-<pre class="r"><code>library(RPostgres)
+
+<h2 id="libraries">Libraries</h2>
+
+<pre><code class="language-r">library(RPostgres)
 library(DBI)
 library(dplyr)
 library(ggplot2)
 library(magrittr) # for the in-place assignment, %&lt;&gt;%
-library(ggrepel)</code></pre>
-</div>
-<div id="data" class="section level2">
-<h2>Data</h2>
-<p>I’m using the <code>game</code> data from retrosheet.</p>
-<pre class="r"><code>conn &lt;- dbConnect(RPostgres::Postgres(), 
+library(ggrepel)
+</code></pre>
+
+<h2 id="data">Data</h2>
+
+<p>I&rsquo;m using the <code>game</code> data from retrosheet.</p>
+
+<pre><code class="language-r">conn &lt;- dbConnect(RPostgres::Postgres(), 
                   password=Sys.getenv(&quot;PSQL_PASS&quot;), 
                   user=Sys.getenv(&quot;PSQL_USER&quot;), 
                   port=Sys.getenv(&quot;PSQL_PORT&quot;), 
-                  dbname=&#39;retrosheet&#39;)
-df1 = dbGetQuery(conn, &quot;select * from game &quot;)</code></pre>
-<p>Make two data frames, one where the home team is “the team” and away team is “the opponent”, and visa versa, then <code>rbind</code> them into a single data frame.</p>
-<pre class="r"><code>dfA = df1 %&gt;% 
+                  dbname='retrosheet')
+df1 = dbGetQuery(conn, &quot;select * from game &quot;)
+</code></pre>
+
+<p>Make two data frames, one where the home team is &ldquo;the team&rdquo; and away team is &ldquo;the opponent&rdquo;, and visa versa, then <code>rbind</code> them into a single data frame.</p>
+
+<pre><code class="language-r">dfA = df1 %&gt;% 
   select(game_id, year_id, team_id=away_team_id, opp_id=home_team_id, team_score=away_score_ct, opp_score=home_score_ct) 
 dfH = df1 %&gt;% 
   select(game_id, year_id, team_id=home_team_id, opp_id=away_team_id, team_score=home_score_ct, opp_score=away_score_ct)
-dfX = dplyr::bind_rows(dfA, dfH)</code></pre>
+dfX = dplyr::bind_rows(dfA, dfH)
+</code></pre>
+
 <p>Compute run differential and an indicator for one-run games.</p>
-<pre class="r"><code>games = dfX %&gt;% mutate(sc_diff = team_score - opp_score, 
+
+<pre><code class="language-r">games = dfX %&gt;% mutate(sc_diff = team_score - opp_score, 
                        is_onerun = abs(sc_diff) == 1, 
-                       is_win = team_score &gt; opp_score)</code></pre>
-<pre class="r"><code>records = games %&gt;% 
+                       is_win = team_score &gt; opp_score)
+</code></pre>
+
+<pre><code class="language-r">records = games %&gt;% 
   group_by(year_id, team_id) %&gt;% 
   summarise(games=n(), 
             wins=sum(is_win), 
@@ -101,16 +114,21 @@ dfX = dplyr::bind_rows(dfA, dfH)</code></pre>
             one_run_wins=sum(is_onerun * is_win), 
             wpct=wins/games, 
             wpct_onerun=one_run_wins/one_run_games) %&gt;% 
-  ungroup()</code></pre>
-<p>Let’s see which teams had the most one-run wins</p>
-<pre class="r"><code>top12_wins1 = records %&gt;% 
+  ungroup()
+</code></pre>
+
+<p>Let&rsquo;s see which teams had the most one-run wins</p>
+
+<pre><code class="language-r">top12_wins1 = records %&gt;% 
   arrange(-one_run_wins) %&gt;% 
   head(12) 
   
-top12_wins1 %&gt;% knitr::kable()</code></pre>
+top12_wins1 %&gt;% knitr::kable()
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">games</th>
@@ -121,8 +139,9 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <th align="right">wpct_onerun</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1978</td>
 <td align="left">SFN</td>
 <td align="right">162</td>
@@ -132,7 +151,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5493827</td>
 <td align="right">0.6176471</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1940</td>
 <td align="left">CIN</td>
 <td align="right">155</td>
@@ -142,7 +162,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6451613</td>
 <td align="right">0.7068966</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">NYN</td>
 <td align="right">162</td>
@@ -152,7 +173,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6172840</td>
 <td align="right">0.6406250</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1970</td>
 <td align="left">BAL</td>
 <td align="right">162</td>
@@ -162,7 +184,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6666667</td>
 <td align="right">0.7272727</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1974</td>
 <td align="left">BAL</td>
 <td align="right">162</td>
@@ -172,7 +195,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5617284</td>
 <td align="right">0.6557377</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1979</td>
 <td align="left">HOU</td>
 <td align="right">162</td>
@@ -182,7 +206,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5493827</td>
 <td align="right">0.5909091</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1985</td>
 <td align="left">CIN</td>
 <td align="right">162</td>
@@ -192,7 +217,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5493827</td>
 <td align="right">0.6842105</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1967</td>
 <td align="left">CHA</td>
 <td align="right">162</td>
@@ -202,7 +228,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5493827</td>
 <td align="right">0.5937500</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1972</td>
 <td align="left">CHA</td>
 <td align="right">154</td>
@@ -212,7 +239,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5649351</td>
 <td align="right">0.6551724</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1982</td>
 <td align="left">SFN</td>
 <td align="right">162</td>
@@ -222,7 +250,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5370370</td>
 <td align="right">0.5757576</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1993</td>
 <td align="left">KCA</td>
 <td align="right">162</td>
@@ -232,7 +261,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5185185</td>
 <td align="right">0.5428571</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1943</td>
 <td align="left">NYA</td>
 <td align="right">153</td>
@@ -244,7 +274,8 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>runs_diff_plot = function(dfX, title=&#39;&#39;) {
+
+<pre><code class="language-r">runs_diff_plot = function(dfX, title='') {
   dfX %&gt;% 
     dplyr::inner_join(games, by=c(&quot;team_id&quot;, &quot;year_id&quot;)) %&gt;% 
     mutate(name=paste(team_id, year_id)) %&gt;% 
@@ -252,21 +283,29 @@ top12_wins1 %&gt;% knitr::kable()</code></pre>
     geom_histogram(binwidth = 1) +
     facet_wrap(~name, ncol=3) + 
     theme_minimal(base_size = 16) + 
-    labs(x=&#39;score differential&#39;, 
+    labs(x='score differential', 
          title=title)  
-}</code></pre>
-<pre class="r"><code>p = runs_diff_plot(top12_wins1, &#39;score differential - top 12 1-run win-pct teams&#39;)
-print(p)</code></pre>
-<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-8-1.png" width="768" /></p>
+}
+</code></pre>
+
+<pre><code class="language-r">p = runs_diff_plot(top12_wins1, 'score differential - top 12 1-run win-pct teams')
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8" /></p>
+
 <p>Highest win percentage in 1-run games</p>
-<pre class="r"><code>top12_wpct1 = records %&gt;% 
+
+<pre><code class="language-r">top12_wpct1 = records %&gt;% 
   arrange(-wpct_onerun) %&gt;% 
   head(12) 
   
-top12_wpct1 %&gt;% knitr::kable()</code></pre>
+top12_wpct1 %&gt;% knitr::kable()
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">games</th>
@@ -277,8 +316,9 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <th align="right">wpct_onerun</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">2016</td>
 <td align="left">TEX</td>
 <td align="right">162</td>
@@ -288,7 +328,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5864198</td>
 <td align="right">0.7659574</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">BAL</td>
 <td align="right">162</td>
@@ -298,7 +339,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5740741</td>
 <td align="right">0.7631579</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1981</td>
 <td align="left">BAL</td>
 <td align="right">105</td>
@@ -308,7 +350,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5619048</td>
 <td align="right">0.7500000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1925</td>
 <td align="left">WS1</td>
 <td align="right">81</td>
@@ -318,7 +361,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6543210</td>
 <td align="right">0.7391304</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1970</td>
 <td align="left">BAL</td>
 <td align="right">162</td>
@@ -328,7 +372,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6666667</td>
 <td align="right">0.7272727</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1954</td>
 <td align="left">CLE</td>
 <td align="right">156</td>
@@ -338,7 +383,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.7115385</td>
 <td align="right">0.7111111</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1961</td>
 <td align="left">CIN</td>
 <td align="right">154</td>
@@ -348,7 +394,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6038961</td>
 <td align="right">0.7083333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1980</td>
 <td align="left">KCA</td>
 <td align="right">162</td>
@@ -358,7 +405,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5987654</td>
 <td align="right">0.7073171</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1940</td>
 <td align="left">CIN</td>
 <td align="right">155</td>
@@ -368,7 +416,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6451613</td>
 <td align="right">0.7068966</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1986</td>
 <td align="left">BOS</td>
 <td align="right">161</td>
@@ -378,7 +427,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.5900621</td>
 <td align="right">0.7058824</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">KCA</td>
 <td align="right">162</td>
@@ -388,7 +438,8 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 <td align="right">0.6296296</td>
 <td align="right">0.7045455</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1959</td>
 <td align="left">CHA</td>
 <td align="right">156</td>
@@ -400,25 +451,33 @@ top12_wpct1 %&gt;% knitr::kable()</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>p = runs_diff_plot(top12_wpct1, &#39;score differential - top 12 1-run win-pct teams&#39;)
-print(p)</code></pre>
-<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-10-1.png" width="768" /></p>
-</div>
-<div id="record-in-non-one-run-games" class="section level2">
-<h2>record in non-one-run games</h2>
-<pre class="r"><code>records %&lt;&gt;% mutate(
+
+<pre><code class="language-r">p = runs_diff_plot(top12_wpct1, 'score differential - top 12 1-run win-pct teams')
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-10-1.png" alt="plot of chunk unnamed-chunk-10" /></p>
+
+<h2 id="record-in-non-one-run-games">record in non-one-run games</h2>
+
+<pre><code class="language-r">records %&lt;&gt;% mutate(
   non_onerun_wins = wins-one_run_wins,
   non_onerun_games = games-one_run_games,
   wpct_non_onerun = non_onerun_wins / non_onerun_games
-  )</code></pre>
+  )
+</code></pre>
+
 <p>Top 12 in <strong>non-one-run games</strong></p>
-<pre class="r"><code>top12_winX = records %&gt;% 
+
+<pre><code class="language-r">top12_winX = records %&gt;% 
   arrange(-non_onerun_wins) %&gt;% 
   head(12)
-top12_winX %&gt;% knitr::kable()</code></pre>
+top12_winX %&gt;% knitr::kable()
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">games</th>
@@ -432,8 +491,9 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <th align="right">wpct_non_onerun</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1998</td>
 <td align="left">NYA</td>
 <td align="right">162</td>
@@ -446,7 +506,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">131</td>
 <td align="right">0.7099237</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2001</td>
 <td align="left">SEA</td>
 <td align="right">162</td>
@@ -459,7 +520,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">124</td>
 <td align="right">0.7258065</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1948</td>
 <td align="left">CLE</td>
 <td align="right">156</td>
@@ -472,7 +534,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">126</td>
 <td align="right">0.6904762</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1927</td>
 <td align="left">NYA</td>
 <td align="right">155</td>
@@ -485,7 +548,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">112</td>
 <td align="right">0.7678571</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1931</td>
 <td align="left">PHA</td>
 <td align="right">150</td>
@@ -498,7 +562,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">117</td>
 <td align="right">0.7264957</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2003</td>
 <td align="left">ATL</td>
 <td align="right">162</td>
@@ -511,7 +576,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">120</td>
 <td align="right">0.7000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">ATL</td>
 <td align="right">162</td>
@@ -524,7 +590,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">118</td>
 <td align="right">0.7033898</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2002</td>
 <td align="left">NYA</td>
 <td align="right">161</td>
@@ -537,7 +604,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">119</td>
 <td align="right">0.6890756</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2004</td>
 <td align="left">BOS</td>
 <td align="right">162</td>
@@ -550,7 +618,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">128</td>
 <td align="right">0.6406250</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2017</td>
 <td align="left">CLE</td>
 <td align="right">162</td>
@@ -563,7 +632,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">127</td>
 <td align="right">0.6456693</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2017</td>
 <td align="left">HOU</td>
 <td align="right">162</td>
@@ -576,7 +646,8 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 <td align="right">130</td>
 <td align="right">0.6307692</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1949</td>
 <td align="left">BRO</td>
 <td align="right">156</td>
@@ -591,16 +662,22 @@ top12_winX %&gt;% knitr::kable()</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>p = runs_diff_plot(top12_winX, &#39;score differential - top 12 non-1-run win teams&#39;)
-print(p)</code></pre>
-<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-13-1.png" width="768" /></p>
-<pre class="r"><code>top12_wpctX = records %&gt;% 
+
+<pre><code class="language-r">p = runs_diff_plot(top12_winX, 'score differential - top 12 non-1-run win teams')
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-13-1.png" alt="plot of chunk unnamed-chunk-13" /></p>
+
+<pre><code class="language-r">top12_wpctX = records %&gt;% 
   arrange(-wpct_non_onerun) %&gt;% 
   head(12)
-top12_wpctX %&gt;% knitr::kable()</code></pre>
+top12_wpctX %&gt;% knitr::kable()
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">games</th>
@@ -614,8 +691,9 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <th align="right">wpct_non_onerun</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1944</td>
 <td align="left">SLN</td>
 <td align="right">122</td>
@@ -628,7 +706,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">89</td>
 <td align="right">0.7752809</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1927</td>
 <td align="left">NYA</td>
 <td align="right">155</td>
@@ -641,7 +720,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">112</td>
 <td align="right">0.7678571</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1932</td>
 <td align="left">NYA</td>
 <td align="right">127</td>
@@ -654,7 +734,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">85</td>
 <td align="right">0.7529412</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1942</td>
 <td align="left">SLN</td>
 <td align="right">139</td>
@@ -667,7 +748,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">96</td>
 <td align="right">0.7500000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1943</td>
 <td align="left">SLN</td>
 <td align="right">138</td>
@@ -680,7 +762,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">82</td>
 <td align="right">0.7317073</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1942</td>
 <td align="left">NYA</td>
 <td align="right">152</td>
@@ -693,7 +776,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">108</td>
 <td align="right">0.7314815</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1929</td>
 <td align="left">CHN</td>
 <td align="right">105</td>
@@ -706,7 +790,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">78</td>
 <td align="right">0.7307692</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1931</td>
 <td align="left">PHA</td>
 <td align="right">150</td>
@@ -719,7 +804,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">117</td>
 <td align="right">0.7264957</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2001</td>
 <td align="left">SEA</td>
 <td align="right">162</td>
@@ -732,7 +818,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">124</td>
 <td align="right">0.7258065</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1935</td>
 <td align="left">CHN</td>
 <td align="right">118</td>
@@ -745,7 +832,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">83</td>
 <td align="right">0.7228916</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1934</td>
 <td align="left">NY1</td>
 <td align="right">120</td>
@@ -758,7 +846,8 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 <td align="right">81</td>
 <td align="right">0.7160494</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1939</td>
 <td align="left">NYA</td>
 <td align="right">143</td>
@@ -773,35 +862,49 @@ top12_wpctX %&gt;% knitr::kable()</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>p = runs_diff_plot(top12_wpctX,  &#39;score differential - top 12 non-1-run win-pct teams&#39;)
-print(p)</code></pre>
-<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-15-1.png" width="768" /></p>
+
+<pre><code class="language-r">p = runs_diff_plot(top12_wpctX,  'score differential - top 12 non-1-run win-pct teams')
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-15-1.png" alt="plot of chunk unnamed-chunk-15" /></p>
+
 <p>Finally, compare winning percentage in 1-run games to winning percentage in non-one-run games</p>
-<pre class="r"><code>p = records %&gt;% 
+
+<pre><code class="language-r">p = records %&gt;% 
   ggplot(aes(x=wpct_non_onerun, y=wpct_onerun)) + 
   geom_point() + 
   theme_minimal(base_size = 16) + 
-  geom_hline(yintercept = 0.5, size=0.5, color=&#39;steelblue&#39;) + 
-  geom_vline(xintercept = 0.5, size=0.5, color=&#39;steelblue&#39;) + 
+  geom_hline(yintercept = 0.5, size=0.5, color='steelblue') + 
+  geom_vline(xintercept = 0.5, size=0.5, color='steelblue') + 
   labs(x=&quot;Win Pct. - Non 1-run&quot;, y=&quot;Win Pct. - 1-run&quot;)
-print(p)</code></pre>
-<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-16-1.png" width="768" /></p>
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-16-1.png" alt="plot of chunk unnamed-chunk-16" /></p>
+
 <p>Label the ones that are on the edges</p>
-<pre class="r"><code>records_quads = records %&gt;% 
+
+<pre><code class="language-r">records_quads = records %&gt;% 
   mutate(r2=(wpct_onerun - 0.5)**2 + (wpct_non_onerun - 0.5)**2, 
-         quad=as.integer(wpct_non_onerun &gt;= 0.5) + 2 * as.integer(wpct_onerun &gt;= 0.5))</code></pre>
-<pre class="r"><code>lab_df = records_quads %&gt;% 
+         quad=as.integer(wpct_non_onerun &gt;= 0.5) + 2 * as.integer(wpct_onerun &gt;= 0.5))
+</code></pre>
+
+<pre><code class="language-r">lab_df = records_quads %&gt;% 
   group_by(quad) %&gt;% 
   arrange(-r2) %&gt;% 
   mutate(r2_rank=row_number()) %&gt;% 
   filter(r2_rank &lt;= 10) %&gt;% 
   ungroup() %&gt;% 
-  mutate(name=paste(team_id, year_id))</code></pre>
-<pre class="r"><code>p2 = p + 
+  mutate(name=paste(team_id, year_id))
+</code></pre>
+
+<pre><code class="language-r">p2 = p + 
   geom_text_repel(data = lab_df, aes(x=wpct_non_onerun, y=wpct_onerun, label=name))
-print(p2)</code></pre>
-<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-19-1.png" width="768" /></p>
-</div>
+print(p2)
+</code></pre>
+
+<p><img src="/post/2018-06-15-record-in-one-run-games_files/figure-html/unnamed-chunk-19-1.png" alt="plot of chunk unnamed-chunk-19" /></p>
 
 </main>
 

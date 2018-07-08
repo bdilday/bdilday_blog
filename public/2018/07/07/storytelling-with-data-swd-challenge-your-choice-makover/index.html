@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Storytelling With Data (SWD) Challenge: Your Choice Makover | graphswithcodeanddata</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+    <header>
+
+  
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-light.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  <nav>
+    <ul>
+      
+      
+      <li class="pull-left ">
+        <a href="/">/home/graphswithcodeanddata</a>
+      </li>
+      
+      
+      <li class="pull-left ">
+        <a href="/about/">~/about</a>
+      </li>
+      
+      
+      <li class="pull-left ">
+        <a href="https://github.com/rstudio/blogdown">~/github</a>
+      </li>
+      
+      
+      <li class="pull-left ">
+        <a href="https://twitter.com/GraphsWithCode">~/twitter</a>
+      </li>
+      
+
+      
+
+    </ul>
+  </nav>
+</header>
+
+  </head>
+
+  <body>
+    <br/>
+
+<div class="article-meta">
+<h1><span class="title">Storytelling With Data (SWD) Challenge: Your Choice Makover</span></h1>
+
+<h2 class="date">2018/07/07</h2>
+<p class="terms">
+  
+  
+  
+  
+  
+</p>
+</div>
+
+
+
+<main>
+
+
+<h1 id="introduction-swdchallenge">Introduction: SWDChallenge</h1>
+
+<p>On her blog and Twitter account, <em>Storytelling With Data</em>, Cole Nussbaumer Knaflic is running a <a href="http://www.storytellingwithdata.com/swdchallenge/">monthly challenge on effective data visualization</a>. Previous challenges have mainly focused on using specific graph types (e.g., <a href="http://www.storytellingwithdata.com/blog/2018/4/2/swdchallenge-square-area-graph">square area</a>, <a href="http://www.storytellingwithdata.com/blog/2018/2/28/swdchallenge-basic-bars">bar charts</a>, <a href="http://www.storytellingwithdata.com/blog/2018/6/1/swdchallenge-slopegraph">slopegraphs</a>) or elements (<a href="http://www.storytellingwithdata.com/blog/2018/1/2/introducing-the-2018-swdchallenge">annotation</a>, <a href="http://www.storytellingwithdata.com/blog/2018/2/8/swdchallenge-education-color-and-words">color</a>). This month <a href="http://www.storytellingwithdata.com/blog/2018/7/1/swdchallenge-your-choice-makeover">the challenge</a> is to remake a less-than-ideal graph. I happen to have one in mind, so I&rsquo;m jumping in to the challenge!</p>
+
+<h1 id="the-less-than-ideal-graph">The less-than-ideal graph</h1>
+
+<p>The graph I&rsquo;m going to remake comes from the Kansas City, MO, <a href="http://kcmo.gov/wp-content/uploads/2013/03/2012_13_Kansas_City_Missouri_Citizen_Survey_Final_Report.pdf">citizen satisfaction survey for 2012-2013</a>. It shows the composite citizen satisfaction for Kansas City compared against the National score.</p>
+
+<p><img src="/post/img/kc_original.png" alt="" /></p>
+
+<p>I happened to come across this graph as part of my day-job and it immediately stuck out to me because it&rsquo;s so hostile to visualization rules-of-thumb and best-practices.</p>
+
+<p>The issues I see with the graph are:</p>
+
+<ul>
+<li><p>using color to encode time</p></li>
+
+<li><p>using distance along the x-axis to encode the categorical variable <code>location</code></p></li>
+
+<li><p>placing comparisons far away from one another, e.g. the value at concurrent times for Kansas City cannot be directly compared against the ones for National</p></li>
+
+<li><p>the title is too long and is redundant with the axis labels</p></li>
+
+<li><p>putting the value in text above the bar which is redundant with encoding that data in the length of the bar</p></li>
+
+<li><p>no label in the y-axis</p></li>
+
+<li><p>bars that don&rsquo;t start at <code>0</code></p></li>
+
+<li><p>arbitrary zero-point</p></li>
+</ul>
+
+<p>On the arbitrary zero-point, it&rsquo;s unclear if the <code>100</code> value for the baseline survey denotes the same meaning for Kansas City vs. National. My reading is that the value are normalized so that each are being compared against their respective scores from 2005. So in effect what&rsquo;s being shown is the change from the baseline, but expressed as 100 + change, and plotted as a bar. This seems, um, less than ideal.</p>
+
+<p>Below I will approximately reproduce this chart in <code>R</code> and then suggest an alternative</p>
+
+<h2 id="r-libraries">R libraries</h2>
+
+<p>Here are the libraries I need</p>
+
+<pre><code class="language-r">library(dplyr)
+library(ggplot2)
+library(tidyr)
+</code></pre>
+
+<h2 id="data">data</h2>
+
+<p>For the data, I read the data off the chart and made a simple CSV file and then read it in. The file looks like,</p>
+
+<pre><code>year,location,score
+2005,Kansas City,100
+2010,Kansas City,108
+2011,Kansas City,109
+2012,Kansas City,111
+2005,National,100
+2010,National,92
+2011,National,91
+2012,National,92
+</code></pre>
+
+<p>and once I read it in, the data frame like,</p>
+
+<pre><code class="language-r">kc_df
+#&gt; # A tibble: 8 x 3
+#&gt;    year location    score
+#&gt;   &lt;int&gt; &lt;chr&gt;       &lt;int&gt;
+#&gt; 1  2005 Kansas City   100
+#&gt; 2  2010 Kansas City   108
+#&gt; 3  2011 Kansas City   109
+#&gt; 4  2012 Kansas City   111
+#&gt; 5  2005 National      100
+#&gt; 6  2010 National       92
+#&gt; 7  2011 National       91
+#&gt; 8  2012 National       92
+</code></pre>
+
+<h2 id="the-original-graph">The Original Graph</h2>
+
+<p>Here&rsquo;s my attempt at reproducing the original.</p>
+
+<p>First I make a dummy x variable that will let me encode both categorical location and year as length along the x-axis.</p>
+
+<pre><code class="language-r">plot_df = kc_df %&gt;% 
+  mutate(i1 = as.integer(as.factor(location)), 
+         i2 = as.integer(as.factor(year))) %&gt;% 
+  mutate(dummy_x = i1 + i2 / 4 + ifelse(i1==2, 0.25, 0))
+plot_df
+#&gt; # A tibble: 8 x 6
+#&gt;    year location    score    i1    i2 dummy_x
+#&gt;   &lt;int&gt; &lt;chr&gt;       &lt;int&gt; &lt;int&gt; &lt;int&gt;   &lt;dbl&gt;
+#&gt; 1  2005 Kansas City   100     1     1    1.25
+#&gt; 2  2010 Kansas City   108     1     2    1.5 
+#&gt; 3  2011 Kansas City   109     1     3    1.75
+#&gt; 4  2012 Kansas City   111     1     4    2   
+#&gt; 5  2005 National      100     2     1    2.5 
+#&gt; 6  2010 National       92     2     2    2.75
+#&gt; 7  2011 National       91     2     3    3   
+#&gt; 8  2012 National       92     2     4    3.25
+</code></pre>
+
+<p>Now plot the data with ggplot, fiddling the settings to approximate the original.</p>
+
+<pre><code class="language-r">long_title = &quot;Overall Composite Customer Satisfaction Index \n for 2005, 2010-11, 2011-12, and 2012-13 \n derived from the mean overall satisfaction rating for the major categories of city services that were \n assessed on the survey (base year 2005 = 100)&quot;
+
+lab_vec = labels=c(&quot;2005 Survey&quot;, 
+                   &quot;2010 to 2011 Survey&quot;, 
+                   &quot;2011 to 2012 Survey&quot;, 
+                   &quot;2012 to 2013 Survey&quot;)
+p = plot_df %&gt;% 
+  mutate(ic=as.factor(i2)) %&gt;% 
+  ggplot(aes(x=dummy_x, y=score, fill=ic)) + 
+  geom_bar(stat='identity',width = 0.25, color='black') + 
+  geom_text(aes(label=score), nudge_y = 1.5, color='black') + 
+  coord_cartesian(ylim=c(80, 120)) + 
+  scale_fill_manual(values = c(&quot;orange&quot;, &quot;pink&quot;, &quot;yellow&quot;, &quot;blue&quot;),
+                    labels = lab_vec)  +
+  scale_x_continuous(breaks = c(1.75, 2.875), 
+                     labels = c(&quot;Kansas City, MO&quot;, &quot;National&quot;)) + 
+  theme_bw(base_size = 14)  + 
+  theme(legend.position = &quot;bottom&quot;, 
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size = 18)) + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.major.y= element_line(color = 'gray')) + 
+  labs(title=long_title, x='', y='') 
+
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-07-07-storytelling-with-data-swd-challenge-your-choice-makover_files/figure-html/unnamed-chunk-5-1.png" alt="plot of chunk unnamed-chunk-5" /></p>
+
+<p>The result isn&rsquo;t a perfect match but is close enough for my purposes.</p>
+
+<h2 id="updating-the-bar-graph">updating the bar graph</h2>
+
+<p>As I&rsquo;ll describe below, I don&rsquo;t think a bar graph is the best way to represent this data. However, if we want to stick with bars there are a few updates we could make.</p>
+
+<ul>
+<li><p>shorten the title and avoid redundancy</p></li>
+
+<li><p>remove the redundant text labels above the bars</p></li>
+
+<li><p>separate the location with faceting</p></li>
+
+<li><p>place the individual bar charts nearby so they can be more directly compared</p></li>
+
+<li><p>add a y-axis title</p></li>
+</ul>
+
+<pre><code class="language-r">less_long_title = &quot;Composite Customer Satisfaction Index \n compared to 2005 baseline&quot;
+
+lab_vec = labels=c(&quot;2005 Survey&quot;, 
+                   &quot;2010 to 2011 Survey&quot;, 
+                   &quot;2011 to 2012 Survey&quot;, 
+                   &quot;2012 to 2013 Survey&quot;)
+p = plot_df %&gt;% 
+  mutate(ic=as.factor(year)) %&gt;% 
+  ggplot(aes(x=ic, y=score)) + 
+  geom_bar(stat='identity',width = 0.25, color='black') + 
+  coord_cartesian(ylim=c(80, 120)) + 
+  scale_fill_manual(values = c(&quot;orange&quot;, &quot;pink&quot;, &quot;yellow&quot;, &quot;blue&quot;),
+                    labels = lab_vec)  +
+  theme_bw(base_size = 14)  + 
+  theme(legend.position = &quot;bottom&quot;, 
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size = 18)) + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.major.y= element_line(color = 'gray')) + 
+  labs(title=less_long_title, x='Survey Year', y='Index') + 
+  facet_wrap(~location, ncol=1)
+
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-07-07-storytelling-with-data-swd-challenge-your-choice-makover_files/figure-html/unnamed-chunk-6-1.png" alt="plot of chunk unnamed-chunk-6" /></p>
+
+<p>An alternative is to use position dodge to put the location side by side</p>
+
+<pre><code class="language-r">p = plot_df %&gt;% 
+  mutate(ic=as.factor(year)) %&gt;% 
+  ggplot(aes(x=ic, y=score, color=location, fill=location)) + 
+  geom_bar(stat='identity', position = 'dodge') +
+  theme_minimal(base_size = 18) + 
+    theme(legend.position = &quot;bottom&quot;, 
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size = 18)) + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.major.y= element_line(color = 'gray')) + 
+  labs(title=less_long_title, x='Survey Year', y='Index') + 
+  labs(x=&quot;Survey Year&quot;, y=&quot;Index&quot;, title=less_long_title) + 
+  coord_cartesian(ylim=c(80, 120)) + 
+  scale_fill_brewer(type='qual', palette = 2)
+
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-07-07-storytelling-with-data-swd-challenge-your-choice-makover_files/figure-html/unnamed-chunk-7-1.png" alt="plot of chunk unnamed-chunk-7" /></p>
+
+<p>We should probably start the y-axis at 0 as well</p>
+
+<pre><code class="language-r">p = plot_df %&gt;% 
+  mutate(ic=as.factor(year)) %&gt;% 
+  ggplot(aes(x=ic, y=score, color=location, fill=location)) + 
+  geom_bar(stat='identity', position = 'dodge') +
+  theme_minimal(base_size = 18) + 
+    theme(legend.position = &quot;bottom&quot;, 
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size = 18)) + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.major.y= element_line(color = 'gray')) + 
+  labs(title=less_long_title, x='Survey Year', y='Index') + 
+  labs(x=&quot;Survey Year&quot;, y=&quot;Index&quot;, title=less_long_title) + 
+  coord_cartesian(ylim=c(0, 120)) + 
+  scale_fill_brewer(type='qual', palette = 2)
+
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-07-07-storytelling-with-data-swd-challenge-your-choice-makover_files/figure-html/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8" /></p>
+
+<h2 id="remake-as-a-line-chart">remake as a line chart</h2>
+
+<p>To go back to what the properties of the data we&rsquo;re working with are:</p>
+
+<ul>
+<li><p>a times-series of values</p></li>
+
+<li><p>referenced to an arbitrary baseline</p></li>
+
+<li><p>a two-valued categorical <code>location</code> variable</p></li>
+</ul>
+
+<p>My &ldquo;best-practices&rdquo; intuition tells me we should use a line chart, grouped by location, and to subtract the baseline.</p>
+
+<pre><code class="language-r">lab_df = data.frame(x=2012, y=c(8, -6), location=c('Kansas City', 'National'), 
+                    stringsAsFactors = FALSE)
+
+p = kc_df %&gt;% 
+  filter(year&gt;2005) %&gt;% 
+  ggplot(aes(x=year, y=score-100)) + 
+  geom_line(aes(group=location, color=location), size=1.5) + 
+  geom_point(aes(group=location, color=location), size=2) + 
+  theme_minimal(base_size = 18) + 
+  geom_hline(yintercept = 0, linetype = 2) + 
+  scale_color_manual(values = c(&quot;#1F78B4&quot;, &quot;#d95f02&quot;)) + 
+  labs(x='Year', y=expression(Delta*' Index'), 
+       title='Composite Customer Satisfaction Index: \n Change vs 2005') + 
+  scale_x_continuous(breaks = c(2010, 2011, 2012)) + 
+  theme(legend.position=&quot;bottom&quot;) + 
+  theme(legend.title = element_blank(), 
+        plot.title = element_text(size=18, hjust = 0.5))
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-07-07-storytelling-with-data-swd-challenge-your-choice-makover_files/figure-html/unnamed-chunk-9-1.png" alt="plot of chunk unnamed-chunk-9" /></p>
+
+<h2 id="remake-as-a-table">remake as a table</h2>
+
+<p>This data is so simple that I&rsquo;m not convinced a graph helps to get insight. An additional alternative is to simply use table for the data, for example,</p>
+
+<pre><code class="language-r">kc_df  %&gt;% spread(year, score) %&gt;% knitr::kable()
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th align="left">location</th>
+<th align="right">2005</th>
+<th align="right">2010</th>
+<th align="right">2011</th>
+<th align="right">2012</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left">Kansas City</td>
+<td align="right">100</td>
+<td align="right">108</td>
+<td align="right">109</td>
+<td align="right">111</td>
+</tr>
+
+<tr>
+<td align="left">National</td>
+<td align="right">100</td>
+<td align="right">92</td>
+<td align="right">91</td>
+<td align="right">92</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+
+    <footer>
+      
+<script>
+(function() {
+  function center_el(tagName) {
+    var tags = document.getElementsByTagName(tagName), i, tag;
+    for (i = 0; i < tags.length; i++) {
+      tag = tags[i];
+      var parent = tag.parentElement;
+      
+      if (parent.childNodes.length === 1) {
+        
+        if (parent.nodeName === 'A') {
+          parent = parent.parentElement;
+          if (parent.childNodes.length != 1) continue;
+        }
+        if (parent.nodeName === 'P') parent.style.textAlign = 'center';
+      }
+    }
+  }
+  var tagNames = ['img', 'embed', 'object'];
+  for (var i = 0; i < tagNames.length; i++) {
+    center_el(tagNames[i]);
+  }
+})();
+</script>
+
+<script src="//yihui.name/js/math-code.js"></script>
+<script async
+src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-71774734-3', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+
+
+      
+    </footer>
+  </body>
+</html>
+

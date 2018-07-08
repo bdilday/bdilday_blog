@@ -6,10 +6,20 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 17 Jun 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 07 Jul 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Storytelling With Data (SWD) Challenge: Your Choice Makover</title>
+      <link>/2018/07/07/storytelling-with-data-swd-challenge-your-choice-makover/</link>
+      <pubDate>Sat, 07 Jul 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/07/07/storytelling-with-data-swd-challenge-your-choice-makover/</guid>
+      <description>Introduction: SWDChallenge On her blog and Twitter account, Storytelling With Data, Cole Nussbaumer Knaflic is running a monthly challenge on effective data visualization. Previous challenges have mainly focused on using specific graph types (e.g., square area, bar charts, slopegraphs) or elements (annotation, color). This month the challenge is to remake a less-than-ideal graph. I happen to have one in mind, so I&amp;rsquo;m jumping in to the challenge!
+The less-than-ideal graph The graph I&amp;rsquo;m going to remake comes from the Kansas City, MO, citizen satisfaction survey for 2012-2013.</description>
+    </item>
     
     <item>
       <title>Closeness Index - One-run games&#43;&#43;</title>
@@ -21,6 +31,15 @@
     </item>
     
     <item>
+      <title>Closeness Index - One-run games&#43;&#43;</title>
+      <link>/2018/06/17/closeness-index-one-run-games/</link>
+      <pubDate>Sun, 17 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/06/17/closeness-index-one-run-games/</guid>
+      <description>Introduction The last post looked at records in one-run games. It turns out that Baseball Musings offered a alternative way of thinking about it some 8 years ago. The overarching idea here is that one-run games are kind of a proxy for tight games - but there&amp;rsquo;s a difference between a game that&amp;rsquo;s not close, and then the bullpen blows a lead and it ends up at 1-run, versus a game that&amp;rsquo;s close the whole way.</description>
+    </item>
+    
+    <item>
       <title>Record in One-run Games</title>
       <link>/2018/06/15/record-in-one-run-games/</link>
       <pubDate>Fri, 15 Jun 2018 00:00:00 +0000</pubDate>
@@ -28,6 +47,16 @@
       <guid>/2018/06/15/record-in-one-run-games/</guid>
       <description>So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are 21 - 9, and 1/2 game up on the Astros despite having a run-differential of about 100 runs less. This post looks at records in one-run games over the years.
 Libraries library(RPostgres) library(DBI) library(dplyr) library(ggplot2) library(magrittr) # for the in-place assignment, %&amp;lt;&amp;gt;% library(ggrepel)  Data I’m using the game data from retrosheet.</description>
+    </item>
+    
+    <item>
+      <title>Record in One-run Games</title>
+      <link>/2018/06/15/record-in-one-run-games/</link>
+      <pubDate>Fri, 15 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/06/15/record-in-one-run-games/</guid>
+      <description>So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are 21 - 9, and 1/2 game up on the Astros despite having a run-differential of about 100 runs less. This post looks at records in one-run games over the years.
+Libraries library(RPostgres) library(DBI) library(dplyr) library(ggplot2) library(magrittr) # for the in-place assignment, %&amp;lt;&amp;gt;% library(ggrepel)  Data I&amp;rsquo;m using the game data from retrosheet.</description>
     </item>
     
     <item>

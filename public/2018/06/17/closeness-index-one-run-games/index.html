@@ -64,41 +64,58 @@
 
 
 <main>
-<div id="introduction" class="section level2">
-<h2>Introduction</h2>
-<p>The <a href="../../../../2018/06/15/record-in-one-run-games/">last post</a> looked at records in one-run games. It turns out that <a href="http://www.baseballmusings.com/?p=48169">Baseball Musings</a> offered a alternative way of thinking about it some 8 years ago. The overarching idea here is that one-run games are kind of a proxy for tight games - but there’s a difference between a game that’s not close, and then the bullpen blows a lead and it ends up at 1-run, versus a game that’s close the whole way. The second type is qualitatively different and tells us more about how strategy might factor in.</p>
-<p>To reemphasize what the technical idea is, you compute a closeness index for a game by taking the average of the absolute value of the score differential at the end of each half inning. So there’s a lower limit for a regulation 9-inning game of 1/18 = 0.056, i.e. when it’s tied the entire game up until the bottom of the ninth and then the home team wins it by one.</p>
+
+
+<h2 id="introduction">Introduction</h2>
+
+<p>The <a href="../../../../2018/06/15/record-in-one-run-games/">last post</a> looked at records in one-run games. It turns out that <a href="http://www.baseballmusings.com/?p=48169">Baseball Musings</a> offered a alternative way of thinking about it some 8 years ago. The overarching idea here is that one-run games are kind of a proxy for tight games - but there&rsquo;s a difference between a game that&rsquo;s not close, and then the bullpen blows a lead and it ends up at 1-run, versus a game that&rsquo;s close the whole way. The second type is qualitatively different and tells us more about how strategy might factor in.</p>
+
+<p>To reemphasize what the technical idea is, you compute a closeness index for a game by taking the average of the absolute value of the score differential at the end of each half inning. So there&rsquo;s a lower limit for a regulation 9-inning game of <sup>1</sup>&frasl;<sub>18</sub> = 0.056, i.e. when it&rsquo;s tied the entire game up until the bottom of the ninth and then the home team wins it by one.</p>
+
 <p>This post will use this definition for closeness index and do some exploratory analysis.</p>
-</div>
-<div id="libraries" class="section level2">
-<h2>libraries</h2>
-<pre class="r"><code>library(RPostgres)
+
+<h2 id="libraries">libraries</h2>
+
+<pre><code class="language-r">library(RPostgres)
 library(DBI)
 library(dplyr)
 library(ggplot2)
-library(ggrepel)</code></pre>
-</div>
-<div id="data" class="section level2">
-<h2>data</h2>
-<p>I’ll use the retrosheet event-level data. This is overkill in a way since I only need scores at the end of half-innings, but it’s the best way I know how to get that.</p>
-<p>In the post where Baseball Musings introduced closeness, he looked exclusively at 1974+, where the records are 100% complete. I’m going to look at 1955+ since I’m looking mainly for outliers and overall trends and am not overly concerned with completeness - I generally believe the maxim of don’t let the perfect be the enemy of the good.</p>
+library(ggrepel)
+</code></pre>
+
+<h2 id="data">data</h2>
+
+<p>I&rsquo;ll use the retrosheet event-level data. This is overkill in a way since I only need scores at the end of half-innings, but it&rsquo;s the best way I know how to get that.</p>
+
+<p>In the post where Baseball Musings introduced closeness, he looked exclusively at 1974+, where the records are 100% complete. I&rsquo;m going to look at 1955+ since I&rsquo;m looking mainly for outliers and overall trends and am not overly concerned with completeness - I generally believe the maxim of don&rsquo;t let the perfect be the enemy of the good.</p>
+
 <p>Connect to the database</p>
-<pre class="r"><code>conn &lt;- dbConnect(RPostgres::Postgres(), 
+
+<pre><code class="language-r">conn &lt;- dbConnect(RPostgres::Postgres(), 
                   password=Sys.getenv(&quot;PSQL_PASS&quot;), 
                   user=Sys.getenv(&quot;PSQL_USER&quot;), 
                   port=Sys.getenv(&quot;PSQL_PORT&quot;), 
-                  dbname=&#39;retrosheet&#39;)</code></pre>
+                  dbname='retrosheet')
+</code></pre>
+
 <p>Grab data since 1955, filtering to only include end of innings</p>
-<pre class="r"><code>  ev = dbGetQuery(conn, &quot;select * from event where year_id &gt; 1954 and inn_end_fl = \&#39;t\&#39;&quot;)</code></pre>
-<div id="closeness-per-inning" class="section level3">
-<h3>closeness per inning</h3>
+
+<pre><code class="language-r">  ev = dbGetQuery(conn, &quot;select * from event where year_id &gt; 1954 and inn_end_fl = \'t\'&quot;)
+</code></pre>
+
+<h3 id="closeness-per-inning">closeness per inning</h3>
+
 <p>This function processes the data to:</p>
+
 <ul>
 <li><p>figure out the score at each half-inning</p></li>
-<li><p>make a duplicate of each record so that there is a row for the home team as “the team” and the away team as “the opponent”, and visa versa</p></li>
-<li><p>add a column for “closeness_idx”, the score differential at the half-inning</p></li>
+
+<li><p>make a duplicate of each record so that there is a row for the home team as &ldquo;the team&rdquo; and the away team as &ldquo;the opponent&rdquo;, and visa versa</p></li>
+
+<li><p>add a column for &ldquo;closeness_idx&rdquo;, the score differential at the half-inning</p></li>
 </ul>
-<pre class="r"><code>process_data = function(ev) {
+
+<pre><code class="language-r">process_data = function(ev) {
   ev2 = ev %&gt;% 
     mutate(home_score = home_score_ct + ifelse(bat_home_id==1, event_runs_ct, 0), 
            away_score = away_score_ct + ifelse(bat_home_id==0, event_runs_ct, 0))
@@ -114,14 +131,20 @@ library(ggrepel)</code></pre>
   evX = dplyr::bind_rows(evA, evH) %&gt;% 
     mutate(close_idx = abs(team_score - opp_score))
 
-}</code></pre>
+}
+</code></pre>
+
 <p>Process the event data</p>
-<pre class="r"><code>evX = process_data(ev)</code></pre>
-</div>
-<div id="closeness-per-game" class="section level3">
-<h3>closeness per game</h3>
+
+<pre><code class="language-r">evX = process_data(ev)
+</code></pre>
+
+<h3 id="closeness-per-game">closeness per game</h3>
+
 <p>This function groups the half-inning data by game, adding a column to indicate which team won.</p>
-<pre class="r"><code>get_wins = function(evX) {
+
+<pre><code class="language-r">
+get_wins = function(evX) {
   win_df = evX %&gt;% 
     group_by(game_id) %&gt;% 
     mutate(mx = max(inn_ct)) %&gt;% 
@@ -134,233 +157,286 @@ library(ggrepel)</code></pre>
   win_df %&gt;% inner_join(evX, by=c(&quot;game_id&quot;, &quot;team_id&quot;)) %&gt;% 
     group_by(game_id, year_id, team_id) %&gt;% 
     mutate(closeness_score=mean(close_idx)) %&gt;% ungroup()
-}</code></pre>
-<pre class="r"><code>ev_win_df = get_wins(evX)
-ev_win_df %&gt;% head(3) %&gt;% as.data.frame()</code></pre>
-<pre><code>##        game_id team_id is_win inn_ct year_id bat_home_id opp_id team_score
-## 1 WS1195509210     WS1  FALSE      9    1955           1    NYA          3
-## 2 WS1195509210     WS1  FALSE      9    1955           0    NYA          3
-## 3 WS1195509210     WS1  FALSE      8    1955           1    NYA          3
-##   opp_score close_idx closeness_score
-## 1         7         4        4.388889
-## 2         7         4        4.388889
-## 3         7         4        4.388889</code></pre>
+}
+</code></pre>
+
+<pre><code class="language-r">ev_win_df = get_wins(evX)
+ev_win_df %&gt;% head(3) %&gt;% as.data.frame()
+#&gt;        game_id team_id is_win inn_ct year_id bat_home_id opp_id team_score
+#&gt; 1 WS1195509210     WS1  FALSE      9    1955           1    NYA          3
+#&gt; 2 WS1195509210     WS1  FALSE      9    1955           0    NYA          3
+#&gt; 3 WS1195509210     WS1  FALSE      8    1955           1    NYA          3
+#&gt;   opp_score close_idx closeness_score
+#&gt; 1         7         4        4.388889
+#&gt; 2         7         4        4.388889
+#&gt; 3         7         4        4.388889
+</code></pre>
+
 <p>Aggregate by game, computing the closeness index as the mean absolute value of the score differential</p>
-<pre class="r"><code>game_win_df = ev_win_df %&gt;% 
+
+<pre><code class="language-r">game_win_df = ev_win_df %&gt;% 
   group_by(game_id, team_id, is_win, year_id) %&gt;% 
   summarise(closeness_idx=mean(close_idx)) %&gt;% 
   ungroup()
-game_win_df %&gt;% head(3) %&gt;% as.data.frame()</code></pre>
-<pre><code>##        game_id team_id is_win year_id closeness_idx
-## 1 ANA199704020     ANA  FALSE    1997     1.7222222
-## 2 ANA199704020     BOS   TRUE    1997     1.7222222
-## 3 ANA199704030     ANA   TRUE    1997     0.3529412</code></pre>
-</div>
-</div>
-<div id="exploratory-analysis" class="section level2">
-<h2>exploratory analysis</h2>
+game_win_df %&gt;% head(3) %&gt;% as.data.frame()
+#&gt;        game_id team_id is_win year_id closeness_idx
+#&gt; 1 ANA199704020     ANA  FALSE    1997     1.7222222
+#&gt; 2 ANA199704020     BOS   TRUE    1997     1.7222222
+#&gt; 3 ANA199704030     ANA   TRUE    1997     0.3529412
+</code></pre>
+
+<h2 id="exploratory-analysis">exploratory analysis</h2>
+
 <p>The distribution of closeness index</p>
-<pre class="r"><code>p = game_win_df %&gt;% ggplot(aes(x=closeness_idx)) + 
+
+<pre><code class="language-r">p = game_win_df %&gt;% ggplot(aes(x=closeness_idx)) + 
   geom_histogram(binwidth = 0.5) + 
   theme_minimal(base_size = 16)
-print(p)</code></pre>
-<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-9-1.png" width="768" /></p>
-<div id="the-most-close-games" class="section level3">
-<h3>the “most close” games</h3>
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-9-1.png" alt="plot of chunk unnamed-chunk-9" /></p>
+
+<h3 id="the-most-close-games">the &ldquo;most close&rdquo; games</h3>
+
 <p>This collapses the per-game closeness (one record for each team) into one record per game, and orders them by closeness index. The <code>game_id</code> can be copy pasted to look up the game on baseball reference, e.g., <a href="https://www.baseball-reference.com/boxes/BAL/BAL195705192.shtml">BAL195705192</a></p>
-<pre class="r"><code>game_win_df %&gt;% group_by(game_id) %&gt;% 
+
+<pre><code class="language-r">game_win_df %&gt;% group_by(game_id) %&gt;% 
   summarise(closeness_idx=mean(closeness_idx)) %&gt;%
   arrange(closeness_idx) %&gt;% 
   filter(closeness_idx &lt; 0.032) %&gt;% 
-  knitr::kable()</code></pre>
+  knitr::kable()
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="left">game_id</th>
 <th align="right">closeness_idx</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="left">BAL195705192</td>
 <td align="right">0.0000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">CHN195608122</td>
 <td align="right">0.0000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">NYN196510022</td>
 <td align="right">0.0000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">SLN198909130</td>
 <td align="right">0.0000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">HOU196804150</td>
 <td align="right">0.0208333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">OAK197107090</td>
 <td align="right">0.0250000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">BAL197409270</td>
 <td align="right">0.0294118</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">CHA196709130</td>
 <td align="right">0.0294118</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">HOU198008230</td>
 <td align="right">0.0294118</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">MON198109210</td>
 <td align="right">0.0294118</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">NYN199309290</td>
 <td align="right">0.0294118</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">BAL195909112</td>
 <td align="right">0.0312500</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">CHN200305310</td>
 <td align="right">0.0312500</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">HOU197604210</td>
 <td align="right">0.0312500</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">PHI199105170</td>
 <td align="right">0.0312500</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">SFN196307020</td>
 <td align="right">0.0312500</td>
 </tr>
 </tbody>
 </table>
-</div>
-<div id="the-least-close-games" class="section level3">
-<h3>the “least close” games</h3>
-<p>Same for the highest closeness indexes, i.e. the “least close” games</p>
-<pre class="r"><code>game_win_df %&gt;% group_by(game_id) %&gt;% 
+
+<h3 id="the-least-close-games">the &ldquo;least close&rdquo; games</h3>
+
+<p>Same for the highest closeness indexes, i.e. the &ldquo;least close&rdquo; games</p>
+
+<pre><code class="language-r">game_win_df %&gt;% group_by(game_id) %&gt;% 
   summarise(closeness_idx=mean(closeness_idx)) %&gt;%
   arrange(-closeness_idx) %&gt;% 
   filter(closeness_idx &gt; 12.6) %&gt;% 
-  knitr::kable()</code></pre>
+  knitr::kable()
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="left">game_id</th>
 <th align="right">closeness_idx</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="left">CHN197509160</td>
 <td align="right">16.11111</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">TOR197908250</td>
 <td align="right">15.66667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">DET200409091</td>
 <td align="right">15.61111</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">BOS200306270</td>
 <td align="right">14.58824</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">NYA200904180</td>
 <td align="right">14.00000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">KC1195504230</td>
 <td align="right">13.66667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">SLN196108030</td>
 <td align="right">13.55556</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">BAL200009280</td>
 <td align="right">13.47059</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">NYA201107302</td>
 <td align="right">13.47059</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">PHI198506110</td>
 <td align="right">13.23529</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">MIN198207150</td>
 <td align="right">13.22222</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">BOS199906260</td>
 <td align="right">13.11765</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">PHI200907060</td>
 <td align="right">13.11765</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">KCA200609230</td>
 <td align="right">13.00000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">KCA200006180</td>
 <td align="right">12.94444</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">COL200509200</td>
 <td align="right">12.88235</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">SDN196906280</td>
 <td align="right">12.77778</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="left">NYA200006180</td>
 <td align="right">12.66667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="left">ATL199906130</td>
 <td align="right">12.61111</td>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div id="seasonal-trends" class="section level2">
-<h2>seasonal trends</h2>
+
+<h2 id="seasonal-trends">seasonal trends</h2>
+
 <p>Anecdotally based on the tables above, the close games tend to come from low-scoring seasons and the least close ones from high-scoring seasons. This highlights the fairly self-evident fact that score differential, and hence closeness, depends on the run environment. This shows the closeness index by season, averaged over all games in a season.</p>
-<pre class="r"><code>p = game_win_df %&gt;% group_by(year_id) %&gt;% 
+
+<pre><code class="language-r">p = game_win_df %&gt;% group_by(year_id) %&gt;% 
   summarise(closeness_idx = mean(closeness_idx)) %&gt;% 
   ggplot(aes(x=year_id, y=closeness_idx)) + 
   geom_point(size=0.5) + 
   geom_line() + theme_minimal(base_size = 16)
-print(p)</code></pre>
-<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-12-1.png" width="768" /></p>
-</div>
-<div id="team-records" class="section level2">
-<h2>Team Records</h2>
-<div id="fracvtio-of-one-run-games" class="section level3">
-<h3>fracvtio of one-run games</h3>
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-12-1.png" alt="plot of chunk unnamed-chunk-12" /></p>
+
+<h2 id="team-records">Team Records</h2>
+
+<h3 id="fracvtio-of-one-run-games">fracvtio of one-run games</h3>
+
 <p>The ultimate goal of this analysis was to look at records in close games, as an analogy to the records in one-run games analyses. To do that, we need to account for the run environment, as shown above. To get an idea of how many games we should consider close and where to set the cutoff, this shows the fraction of all games that are one-run games.</p>
-<pre class="r"><code>p = ev_win_df %&gt;% 
+
+<pre><code class="language-r">p = ev_win_df %&gt;% 
   group_by(game_id, year_id, team_id) %&gt;% 
   summarise(team_score=max(team_score), 
             opp_score = max(opp_score)) %&gt;%
@@ -370,11 +446,16 @@ print(p)</code></pre>
   summarise(frac1 = mean(is1)) %&gt;% 
   ggplot(aes(x=year_id, y=frac1)) + 
   geom_line() + theme_minimal(base_size = 16)
-print(p)</code></pre>
-<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-13-1.png" width="768" /></p>
-<p>We see that historically “one-run games” occur something like 30% of the time. Here I take the lowest 30% of closeness index as definition of “close games” and see which teams had the most wins and highest win percentage</p>
+print(p)
+</code></pre>
+
+<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-13-1.png" alt="plot of chunk unnamed-chunk-13" /></p>
+
+<p>We see that historically &ldquo;one-run games&rdquo; occur something like 30% of the time. Here I take the lowest 30% of closeness index as definition of &ldquo;close games&rdquo; and see which teams had the most wins and highest win percentage</p>
+
 <p>First define a function to change the definition and output tables of most wins and highest win percentage</p>
-<pre class="r"><code>close_wins_tables = function(game_wins_df, close_definition, nteam=15) {
+
+<pre><code class="language-r">close_wins_tables = function(game_wins_df, close_definition, nteam=15) {
 
   close_percentile_df = game_wins_df %&gt;% 
     mutate(dummy=1) %&gt;% 
@@ -399,15 +480,20 @@ print(p)</code></pre>
          head(nteam)
        )
 
-}</code></pre>
+}
+</code></pre>
+
 <p>With the general function defined, try using the 30% closest games for each season</p>
-<pre class="r"><code>close_definition = 0.3
+
+<pre><code class="language-r">close_definition = 0.3
 tables = close_wins_tables(game_win_df, close_definition)
 # ordered by wins
-knitr::kable(tables$w_table)</code></pre>
+knitr::kable(tables$w_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -417,8 +503,9 @@ knitr::kable(tables$w_table)</code></pre>
 <th align="right">wpct_close</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1969</td>
 <td align="left">NYN</td>
 <td align="right">100</td>
@@ -427,7 +514,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">60</td>
 <td align="right">0.7000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1959</td>
 <td align="left">CHA</td>
 <td align="right">94</td>
@@ -436,7 +524,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">56</td>
 <td align="right">0.7142857</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1992</td>
 <td align="left">PIT</td>
 <td align="right">96</td>
@@ -445,7 +534,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">60</td>
 <td align="right">0.6666667</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2002</td>
 <td align="left">LAN</td>
 <td align="right">92</td>
@@ -454,7 +544,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">61</td>
 <td align="right">0.6557377</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2011</td>
 <td align="left">SFN</td>
 <td align="right">86</td>
@@ -463,7 +554,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">70</td>
 <td align="right">0.5714286</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1999</td>
 <td align="left">ATL</td>
 <td align="right">103</td>
@@ -472,7 +564,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">56</td>
 <td align="right">0.6964286</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2003</td>
 <td align="left">LAN</td>
 <td align="right">85</td>
@@ -481,7 +574,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">71</td>
 <td align="right">0.5492958</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1993</td>
 <td align="left">ATL</td>
 <td align="right">104</td>
@@ -490,7 +584,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">60</td>
 <td align="right">0.6333333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2015</td>
 <td align="left">SLN</td>
 <td align="right">100</td>
@@ -499,7 +594,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">66</td>
 <td align="right">0.5757576</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2016</td>
 <td align="left">SFN</td>
 <td align="right">87</td>
@@ -508,7 +604,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">63</td>
 <td align="right">0.6031746</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1965</td>
 <td align="left">LAN</td>
 <td align="right">97</td>
@@ -517,7 +614,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">68</td>
 <td align="right">0.5441176</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1966</td>
 <td align="left">LAN</td>
 <td align="right">95</td>
@@ -526,7 +624,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">59</td>
 <td align="right">0.6271186</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">BAL</td>
 <td align="right">97</td>
@@ -535,7 +634,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">52</td>
 <td align="right">0.7115385</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1995</td>
 <td align="left">ATL</td>
 <td align="right">90</td>
@@ -544,7 +644,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">59</td>
 <td align="right">0.6271186</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2008</td>
 <td align="left">ANA</td>
 <td align="right">100</td>
@@ -555,11 +656,14 @@ knitr::kable(tables$w_table)</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code># ordered by win percentage
-knitr::kable(tables$wpct_table)</code></pre>
+
+<pre><code class="language-r"># ordered by win percentage
+knitr::kable(tables$wpct_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -569,8 +673,9 @@ knitr::kable(tables$wpct_table)</code></pre>
 <th align="right">wpct_close</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">2009</td>
 <td align="left">NYA</td>
 <td align="right">103</td>
@@ -579,7 +684,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">48</td>
 <td align="right">0.7708333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1961</td>
 <td align="left">LAN</td>
 <td align="right">89</td>
@@ -588,7 +694,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">43</td>
 <td align="right">0.7441860</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1995</td>
 <td align="left">CLE</td>
 <td align="right">100</td>
@@ -597,7 +704,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">46</td>
 <td align="right">0.7391304</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2007</td>
 <td align="left">NYN</td>
 <td align="right">88</td>
@@ -606,7 +714,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">40</td>
 <td align="right">0.7250000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1956</td>
 <td align="left">BOS</td>
 <td align="right">83</td>
@@ -615,7 +724,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">42</td>
 <td align="right">0.7142857</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1959</td>
 <td align="left">CHA</td>
 <td align="right">94</td>
@@ -624,7 +734,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">56</td>
 <td align="right">0.7142857</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">BAL</td>
 <td align="right">97</td>
@@ -633,7 +744,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">52</td>
 <td align="right">0.7115385</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1999</td>
 <td align="left">TEX</td>
 <td align="right">95</td>
@@ -642,7 +754,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">38</td>
 <td align="right">0.7105263</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1961</td>
 <td align="left">CIN</td>
 <td align="right">93</td>
@@ -651,7 +764,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">41</td>
 <td align="right">0.7073171</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1995</td>
 <td align="left">BOS</td>
 <td align="right">86</td>
@@ -660,7 +774,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">41</td>
 <td align="right">0.7073171</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">NYA</td>
 <td align="right">114</td>
@@ -669,7 +784,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">41</td>
 <td align="right">0.7073171</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">OAK</td>
 <td align="right">94</td>
@@ -678,7 +794,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">51</td>
 <td align="right">0.7058824</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1963</td>
 <td align="left">LAN</td>
 <td align="right">99</td>
@@ -687,7 +804,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">50</td>
 <td align="right">0.7000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">NYN</td>
 <td align="right">100</td>
@@ -696,7 +814,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">60</td>
 <td align="right">0.7000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">BAL</td>
 <td align="right">93</td>
@@ -707,13 +826,17 @@ knitr::kable(tables$wpct_table)</code></pre>
 </tr>
 </tbody>
 </table>
-<p>Let’s tighten that up to 20th percentile</p>
-<pre class="r"><code>close_definition = 0.2
+
+<p>Let&rsquo;s tighten that up to 20th percentile</p>
+
+<pre><code class="language-r">close_definition = 0.2
 tables = close_wins_tables(game_win_df, close_definition)
-knitr::kable(tables$w_table)</code></pre>
+knitr::kable(tables$w_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -723,8 +846,9 @@ knitr::kable(tables$w_table)</code></pre>
 <th align="right">wpct_close</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">2011</td>
 <td align="left">SFN</td>
 <td align="right">86</td>
@@ -733,7 +857,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">52</td>
 <td align="right">0.6153846</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">NYN</td>
 <td align="right">100</td>
@@ -742,7 +867,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">43</td>
 <td align="right">0.7209302</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1968</td>
 <td align="left">SLN</td>
 <td align="right">97</td>
@@ -751,7 +877,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">40</td>
 <td align="right">0.7250000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2003</td>
 <td align="left">LAN</td>
 <td align="right">85</td>
@@ -760,7 +887,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">52</td>
 <td align="right">0.5576923</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">BAL</td>
 <td align="right">93</td>
@@ -769,7 +897,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">37</td>
 <td align="right">0.7837838</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2016</td>
 <td align="left">SFN</td>
 <td align="right">87</td>
@@ -778,7 +907,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">48</td>
 <td align="right">0.6041667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1959</td>
 <td align="left">CHA</td>
 <td align="right">94</td>
@@ -787,7 +917,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">39</td>
 <td align="right">0.7179487</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1985</td>
 <td align="left">NYN</td>
 <td align="right">98</td>
@@ -796,7 +927,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">48</td>
 <td align="right">0.5833333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1993</td>
 <td align="left">SLN</td>
 <td align="right">87</td>
@@ -805,7 +937,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">49</td>
 <td align="right">0.5714286</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1999</td>
 <td align="left">ATL</td>
 <td align="right">103</td>
@@ -814,7 +947,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">38</td>
 <td align="right">0.7368421</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2011</td>
 <td align="left">WAS</td>
 <td align="right">80</td>
@@ -823,7 +957,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">44</td>
 <td align="right">0.6363636</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1963</td>
 <td align="left">HOU</td>
 <td align="right">66</td>
@@ -832,7 +967,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">45</td>
 <td align="right">0.6000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1975</td>
 <td align="left">SFN</td>
 <td align="right">80</td>
@@ -841,7 +977,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">40</td>
 <td align="right">0.6750000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1993</td>
 <td align="left">MON</td>
 <td align="right">94</td>
@@ -850,7 +987,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">46</td>
 <td align="right">0.5869565</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2004</td>
 <td align="left">MIN</td>
 <td align="right">92</td>
@@ -861,10 +999,13 @@ knitr::kable(tables$w_table)</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>knitr::kable(tables$wpct_table)</code></pre>
+
+<pre><code class="language-r">knitr::kable(tables$wpct_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -874,8 +1015,9 @@ knitr::kable(tables$w_table)</code></pre>
 <th align="right">wpct_close</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1999</td>
 <td align="left">TEX</td>
 <td align="right">95</td>
@@ -884,7 +1026,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">25</td>
 <td align="right">0.8400000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2006</td>
 <td align="left">TOR</td>
 <td align="right">87</td>
@@ -893,7 +1036,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">22</td>
 <td align="right">0.8181818</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1961</td>
 <td align="left">LAN</td>
 <td align="right">89</td>
@@ -902,7 +1046,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">27</td>
 <td align="right">0.8148148</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">BAL</td>
 <td align="right">93</td>
@@ -911,7 +1056,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">37</td>
 <td align="right">0.7837838</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">NYA</td>
 <td align="right">114</td>
@@ -920,7 +1066,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">32</td>
 <td align="right">0.7812500</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2011</td>
 <td align="left">ARI</td>
 <td align="right">94</td>
@@ -929,7 +1076,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">21</td>
 <td align="right">0.7619048</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1970</td>
 <td align="left">MIN</td>
 <td align="right">98</td>
@@ -938,7 +1086,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">29</td>
 <td align="right">0.7586207</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1988</td>
 <td align="left">OAK</td>
 <td align="right">104</td>
@@ -947,7 +1096,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">29</td>
 <td align="right">0.7586207</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2009</td>
 <td align="left">NYA</td>
 <td align="right">103</td>
@@ -956,7 +1106,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">33</td>
 <td align="right">0.7575758</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2004</td>
 <td align="left">NYA</td>
 <td align="right">101</td>
@@ -965,7 +1116,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">24</td>
 <td align="right">0.7500000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2013</td>
 <td align="left">CLE</td>
 <td align="right">92</td>
@@ -974,7 +1126,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">28</td>
 <td align="right">0.7500000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">BAL</td>
 <td align="right">97</td>
@@ -983,7 +1136,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">35</td>
 <td align="right">0.7428571</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2005</td>
 <td align="left">PHI</td>
 <td align="right">88</td>
@@ -992,7 +1146,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">27</td>
 <td align="right">0.7407407</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1999</td>
 <td align="left">ATL</td>
 <td align="right">103</td>
@@ -1001,7 +1156,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">38</td>
 <td align="right">0.7368421</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1956</td>
 <td align="left">BOS</td>
 <td align="right">83</td>
@@ -1012,14 +1168,18 @@ knitr::kable(tables$w_table)</code></pre>
 </tr>
 </tbody>
 </table>
+
 <p>And 10th percentile,</p>
-<pre class="r"><code>close_definition = 0.1
+
+<pre><code class="language-r">close_definition = 0.1
 tables = close_wins_tables(game_win_df, close_definition)
 # ordered by wins
-knitr::kable(tables$w_table)</code></pre>
+knitr::kable(tables$w_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -1029,8 +1189,9 @@ knitr::kable(tables$w_table)</code></pre>
 <th align="right">wpct_close</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1999</td>
 <td align="left">ATL</td>
 <td align="right">103</td>
@@ -1039,7 +1200,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">26</td>
 <td align="right">0.7692308</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1974</td>
 <td align="left">BAL</td>
 <td align="right">91</td>
@@ -1048,7 +1210,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">25</td>
 <td align="right">0.7600000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">NYN</td>
 <td align="right">100</td>
@@ -1057,7 +1220,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.7826087</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1996</td>
 <td align="left">SDN</td>
 <td align="right">91</td>
@@ -1066,7 +1230,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">26</td>
 <td align="right">0.6923077</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1993</td>
 <td align="left">ATL</td>
 <td align="right">104</td>
@@ -1075,7 +1240,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">24</td>
 <td align="right">0.7083333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2002</td>
 <td align="left">SFN</td>
 <td align="right">95</td>
@@ -1084,7 +1250,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">25</td>
 <td align="right">0.6800000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2004</td>
 <td align="left">SLN</td>
 <td align="right">105</td>
@@ -1093,7 +1260,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.7391304</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2009</td>
 <td align="left">LAN</td>
 <td align="right">95</td>
@@ -1102,7 +1270,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">28</td>
 <td align="right">0.6071429</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1967</td>
 <td align="left">CHA</td>
 <td align="right">89</td>
@@ -1111,7 +1280,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">24</td>
 <td align="right">0.6666667</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1970</td>
 <td align="left">PHI</td>
 <td align="right">73</td>
@@ -1120,7 +1290,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.6956522</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1975</td>
 <td align="left">SFN</td>
 <td align="right">80</td>
@@ -1129,7 +1300,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">22</td>
 <td align="right">0.7272727</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1980</td>
 <td align="left">MON</td>
 <td align="right">90</td>
@@ -1138,7 +1310,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">24</td>
 <td align="right">0.6666667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1980</td>
 <td align="left">SDN</td>
 <td align="right">73</td>
@@ -1147,7 +1320,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">27</td>
 <td align="right">0.5925926</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1982</td>
 <td align="left">PHI</td>
 <td align="right">89</td>
@@ -1156,7 +1330,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.6956522</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1990</td>
 <td align="left">BOS</td>
 <td align="right">88</td>
@@ -1167,11 +1342,14 @@ knitr::kable(tables$w_table)</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code># ordered by win percentage
-knitr::kable(tables$wpct_table)</code></pre>
+
+<pre><code class="language-r"># ordered by win percentage
+knitr::kable(tables$wpct_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -1181,8 +1359,9 @@ knitr::kable(tables$wpct_table)</code></pre>
 <th align="right">wpct_close</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">2009</td>
 <td align="left">NYA</td>
 <td align="right">103</td>
@@ -1191,7 +1370,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">13</td>
 <td align="right">0.9230769</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2003</td>
 <td align="left">SFN</td>
 <td align="right">100</td>
@@ -1200,7 +1380,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">0.9166667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1968</td>
 <td align="left">PHI</td>
 <td align="right">76</td>
@@ -1209,7 +1390,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">10</td>
 <td align="right">0.9000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">BAL</td>
 <td align="right">93</td>
@@ -1218,7 +1400,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">18</td>
 <td align="right">0.8888889</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1999</td>
 <td align="left">TEX</td>
 <td align="right">95</td>
@@ -1227,7 +1410,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">15</td>
 <td align="right">0.8666667</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1984</td>
 <td align="left">NYN</td>
 <td align="right">90</td>
@@ -1236,7 +1420,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">14</td>
 <td align="right">0.8571429</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2006</td>
 <td align="left">TOR</td>
 <td align="right">87</td>
@@ -1245,7 +1430,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">7</td>
 <td align="right">0.8571429</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">HOU</td>
 <td align="right">102</td>
@@ -1254,7 +1440,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">13</td>
 <td align="right">0.8461538</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1988</td>
 <td align="left">OAK</td>
 <td align="right">104</td>
@@ -1263,7 +1450,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">18</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1995</td>
 <td align="left">ATL</td>
 <td align="right">90</td>
@@ -1272,7 +1460,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">18</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1996</td>
 <td align="left">MIL</td>
 <td align="right">80</td>
@@ -1281,7 +1470,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2000</td>
 <td align="left">OAK</td>
 <td align="right">91</td>
@@ -1290,7 +1480,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">6</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2013</td>
 <td align="left">ATL</td>
 <td align="right">96</td>
@@ -1299,7 +1490,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2017</td>
 <td align="left">WAS</td>
 <td align="right">97</td>
@@ -1308,7 +1500,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">18</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1989</td>
 <td align="left">SDN</td>
 <td align="right">89</td>
@@ -1319,13 +1512,14 @@ knitr::kable(tables$wpct_table)</code></pre>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div id="non-close-games" class="section level2">
-<h2>non-close games</h2>
-<p>We can try the same, looking at games that aren’t close. This doesn’t really reflect any strategy but is more just a fun piece of trivia to see which teams had good records in blowouts.</p>
+
+<h2 id="non-close-games">non-close games</h2>
+
+<p>We can try the same, looking at games that aren&rsquo;t close. This doesn&rsquo;t really reflect any strategy but is more just a fun piece of trivia to see which teams had good records in blowouts.</p>
+
 <p>The function definition is almost identical to the one for close games, except we pick games greater than some threshold versus games less than some threshold.</p>
-<pre class="r"><code>blowout_wins_tables = function(game_wins_df, close_definition, nteam=15) {
+
+<pre><code class="language-r">blowout_wins_tables = function(game_wins_df, close_definition, nteam=15) {
 
   close_percentile_df = game_wins_df %&gt;% 
     mutate(dummy=1) %&gt;% 
@@ -1351,14 +1545,18 @@ knitr::kable(tables$wpct_table)</code></pre>
          head(nteam)
        )
 
-}</code></pre>
-<pre class="r"><code>blowout_definition = 0.8
+}
+</code></pre>
+
+<pre><code class="language-r">blowout_definition = 0.8
 tables = blowout_wins_tables(game_win_df, blowout_definition)
 # ordered by wins
-knitr::kable(tables$w_table)</code></pre>
+knitr::kable(tables$w_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -1368,8 +1566,9 @@ knitr::kable(tables$w_table)</code></pre>
 <th align="right">wpct_blowout</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">2015</td>
 <td align="left">TOR</td>
 <td align="right">93</td>
@@ -1378,7 +1577,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">47</td>
 <td align="right">0.7021277</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1983</td>
 <td align="left">BAL</td>
 <td align="right">98</td>
@@ -1387,7 +1587,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">51</td>
 <td align="right">0.6274510</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1985</td>
 <td align="left">NYA</td>
 <td align="right">97</td>
@@ -1396,7 +1597,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">43</td>
 <td align="right">0.7441860</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1956</td>
 <td align="left">NYA</td>
 <td align="right">97</td>
@@ -1405,7 +1607,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">47</td>
 <td align="right">0.6595745</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1962</td>
 <td align="left">SFN</td>
 <td align="right">103</td>
@@ -1414,7 +1617,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">44</td>
 <td align="right">0.7045455</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1970</td>
 <td align="left">CHN</td>
 <td align="right">84</td>
@@ -1423,7 +1627,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">41</td>
 <td align="right">0.7560976</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1987</td>
 <td align="left">DET</td>
 <td align="right">98</td>
@@ -1432,7 +1637,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">47</td>
 <td align="right">0.6595745</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2002</td>
 <td align="left">ANA</td>
 <td align="right">99</td>
@@ -1441,7 +1647,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">39</td>
 <td align="right">0.7948718</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">NYA</td>
 <td align="right">100</td>
@@ -1450,7 +1657,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">44</td>
 <td align="right">0.6818182</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1979</td>
 <td align="left">BOS</td>
 <td align="right">91</td>
@@ -1459,7 +1667,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">44</td>
 <td align="right">0.6818182</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1980</td>
 <td align="left">KCA</td>
 <td align="right">97</td>
@@ -1468,7 +1677,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">47</td>
 <td align="right">0.6382979</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">NYA</td>
 <td align="right">114</td>
@@ -1477,7 +1687,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">39</td>
 <td align="right">0.7692308</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1976</td>
 <td align="left">CIN</td>
 <td align="right">102</td>
@@ -1486,7 +1697,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">39</td>
 <td align="right">0.7435897</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1988</td>
 <td align="left">TOR</td>
 <td align="right">87</td>
@@ -1495,7 +1707,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">45</td>
 <td align="right">0.6444444</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">HOU</td>
 <td align="right">102</td>
@@ -1506,11 +1719,14 @@ knitr::kable(tables$w_table)</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code># ordered by win percentage
-knitr::kable(tables$wpct_table)</code></pre>
+
+<pre><code class="language-r"># ordered by win percentage
+knitr::kable(tables$wpct_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -1520,8 +1736,9 @@ knitr::kable(tables$wpct_table)</code></pre>
 <th align="right">wpct_blowout</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">2017</td>
 <td align="left">CLE</td>
 <td align="right">102</td>
@@ -1530,7 +1747,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">32</td>
 <td align="right">0.8750000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1999</td>
 <td align="left">ARI</td>
 <td align="right">100</td>
@@ -1539,7 +1757,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.8695652</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">BAL</td>
 <td align="right">109</td>
@@ -1548,7 +1767,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">32</td>
 <td align="right">0.8437500</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1994</td>
 <td align="left">ATL</td>
 <td align="right">68</td>
@@ -1557,7 +1777,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">18</td>
 <td align="right">0.8333333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">HOU</td>
 <td align="right">102</td>
@@ -1566,7 +1787,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">35</td>
 <td align="right">0.8285714</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">TBA</td>
 <td align="right">90</td>
@@ -1575,7 +1797,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">27</td>
 <td align="right">0.8148148</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1971</td>
 <td align="left">BAL</td>
 <td align="right">101</td>
@@ -1584,7 +1807,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">32</td>
 <td align="right">0.8125000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1990</td>
 <td align="left">PIT</td>
 <td align="right">95</td>
@@ -1593,7 +1817,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">32</td>
 <td align="right">0.8125000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2012</td>
 <td align="left">ATL</td>
 <td align="right">94</td>
@@ -1602,7 +1827,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">31</td>
 <td align="right">0.8064516</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2008</td>
 <td align="left">CHN</td>
 <td align="right">97</td>
@@ -1611,7 +1837,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">30</td>
 <td align="right">0.8000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2016</td>
 <td align="left">CHN</td>
 <td align="right">103</td>
@@ -1620,7 +1847,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">30</td>
 <td align="right">0.8000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2002</td>
 <td align="left">ANA</td>
 <td align="right">99</td>
@@ -1629,7 +1857,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">39</td>
 <td align="right">0.7948718</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1976</td>
 <td align="left">PHI</td>
 <td align="right">101</td>
@@ -1638,7 +1867,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">32</td>
 <td align="right">0.7812500</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1979</td>
 <td align="left">BAL</td>
 <td align="right">102</td>
@@ -1647,7 +1877,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">27</td>
 <td align="right">0.7777778</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1997</td>
 <td align="left">ATL</td>
 <td align="right">101</td>
@@ -1658,14 +1889,18 @@ knitr::kable(tables$wpct_table)</code></pre>
 </tr>
 </tbody>
 </table>
+
 <p>Ratchet it up to 90th percentile</p>
-<pre class="r"><code>blowout_definition = 0.9
+
+<pre><code class="language-r">blowout_definition = 0.9
 tables = blowout_wins_tables(game_win_df, blowout_definition)
 # ordered by wins
-knitr::kable(tables$w_table)</code></pre>
+knitr::kable(tables$w_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -1675,8 +1910,9 @@ knitr::kable(tables$w_table)</code></pre>
 <th align="right">wpct_blowout</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1987</td>
 <td align="left">DET</td>
 <td align="right">98</td>
@@ -1685,7 +1921,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">31</td>
 <td align="right">0.7741935</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">NYA</td>
 <td align="right">100</td>
@@ -1694,7 +1931,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">25</td>
 <td align="right">0.8400000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2014</td>
 <td align="left">OAK</td>
 <td align="right">88</td>
@@ -1703,7 +1941,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">26</td>
 <td align="right">0.8076923</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2011</td>
 <td align="left">TEX</td>
 <td align="right">96</td>
@@ -1712,7 +1951,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">30</td>
 <td align="right">0.6333333</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2013</td>
 <td align="left">SLN</td>
 <td align="right">97</td>
@@ -1721,7 +1961,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">24</td>
 <td align="right">0.7916667</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2015</td>
 <td align="left">TOR</td>
 <td align="right">93</td>
@@ -1730,7 +1971,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.8260870</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">MIN</td>
 <td align="right">97</td>
@@ -1739,7 +1981,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.7826087</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1970</td>
 <td align="left">BAL</td>
 <td align="right">108</td>
@@ -1748,7 +1991,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">23</td>
 <td align="right">0.7826087</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1980</td>
 <td align="left">KCA</td>
 <td align="right">97</td>
@@ -1757,7 +2001,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">26</td>
 <td align="right">0.6923077</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1986</td>
 <td align="left">BOS</td>
 <td align="right">95</td>
@@ -1766,7 +2011,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">19</td>
 <td align="right">0.9473684</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1992</td>
 <td align="left">MIL</td>
 <td align="right">92</td>
@@ -1775,7 +2021,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">25</td>
 <td align="right">0.7200000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1992</td>
 <td align="left">TOR</td>
 <td align="right">96</td>
@@ -1784,7 +2031,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">28</td>
 <td align="right">0.6428571</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1995</td>
 <td align="left">CAL</td>
 <td align="right">78</td>
@@ -1793,7 +2041,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">25</td>
 <td align="right">0.7200000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">NYA</td>
 <td align="right">114</td>
@@ -1802,7 +2051,8 @@ knitr::kable(tables$w_table)</code></pre>
 <td align="right">22</td>
 <td align="right">0.8181818</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2013</td>
 <td align="left">DET</td>
 <td align="right">93</td>
@@ -1813,11 +2063,14 @@ knitr::kable(tables$w_table)</code></pre>
 </tr>
 </tbody>
 </table>
-<pre class="r"><code># ordered by win percentage
-knitr::kable(tables$wpct_table)</code></pre>
+
+<pre><code class="language-r"># ordered by win percentage
+knitr::kable(tables$wpct_table)
+</code></pre>
+
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th align="right">year_id</th>
 <th align="left">team_id</th>
 <th align="right">w</th>
@@ -1827,8 +2080,9 @@ knitr::kable(tables$wpct_table)</code></pre>
 <th align="right">wpct_blowout</th>
 </tr>
 </thead>
+
 <tbody>
-<tr class="odd">
+<tr>
 <td align="right">1966</td>
 <td align="left">BAL</td>
 <td align="right">97</td>
@@ -1837,7 +2091,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">11</td>
 <td align="right">1.0000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1977</td>
 <td align="left">KCA</td>
 <td align="right">102</td>
@@ -1846,7 +2101,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">1.0000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1982</td>
 <td align="left">CAL</td>
 <td align="right">93</td>
@@ -1855,7 +2111,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">17</td>
 <td align="right">1.0000000</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1994</td>
 <td align="left">PHI</td>
 <td align="right">54</td>
@@ -1864,7 +2121,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">4</td>
 <td align="right">1.0000000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1986</td>
 <td align="left">BOS</td>
 <td align="right">95</td>
@@ -1873,7 +2131,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">19</td>
 <td align="right">0.9473684</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1998</td>
 <td align="left">HOU</td>
 <td align="right">102</td>
@@ -1882,7 +2141,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">17</td>
 <td align="right">0.9411765</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2017</td>
 <td align="left">CLE</td>
 <td align="right">102</td>
@@ -1891,7 +2151,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">17</td>
 <td align="right">0.9411765</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1969</td>
 <td align="left">BAL</td>
 <td align="right">109</td>
@@ -1900,7 +2161,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">16</td>
 <td align="right">0.9375000</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1995</td>
 <td align="left">CLE</td>
 <td align="right">100</td>
@@ -1909,7 +2171,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">15</td>
 <td align="right">0.9333333</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1991</td>
 <td align="left">PIT</td>
 <td align="right">98</td>
@@ -1918,7 +2181,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">13</td>
 <td align="right">0.9230769</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1960</td>
 <td align="left">DET</td>
 <td align="right">71</td>
@@ -1927,7 +2191,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">0.9166667</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">1986</td>
 <td align="left">NYN</td>
 <td align="right">108</td>
@@ -1936,7 +2201,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">0.9166667</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">2009</td>
 <td align="left">PHI</td>
 <td align="right">93</td>
@@ -1945,7 +2211,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">12</td>
 <td align="right">0.9166667</td>
 </tr>
-<tr class="even">
+
+<tr>
 <td align="right">2002</td>
 <td align="left">BOS</td>
 <td align="right">93</td>
@@ -1954,7 +2221,8 @@ knitr::kable(tables$wpct_table)</code></pre>
 <td align="right">19</td>
 <td align="right">0.8947368</td>
 </tr>
-<tr class="odd">
+
+<tr>
 <td align="right">1984</td>
 <td align="left">MON</td>
 <td align="right">78</td>
@@ -1965,11 +2233,12 @@ knitr::kable(tables$wpct_table)</code></pre>
 </tr>
 </tbody>
 </table>
-</div>
-<div id="records-in-close-vs-non-close-games" class="section level2">
-<h2>Records in close vs non-close games</h2>
+
+<h2 id="records-in-close-vs-non-close-games">Records in close vs non-close games</h2>
+
 <p>The main point output of the look at <a href="../../../../2018/06/15/record-in-one-run-games/">one-run games</a> was a graph of win percentage in one-run vs non-one-run games. This graph reproduces that, using top 20th percentile of closeness as the replacement for one-run games.</p>
-<pre class="r"><code>close_definition = 0.2
+
+<pre><code class="language-r">close_definition = 0.2
 
 plot_df = close_percentile_df = game_win_df %&gt;% 
   mutate(dummy=1) %&gt;% 
@@ -1984,17 +2253,22 @@ plot_df = close_percentile_df = game_win_df %&gt;%
             g_close = sum(is_close), 
             wpct_close = w_close/g_close, 
             wpct_other = (w-w_close)/(g - g_close)) %&gt;% 
-  ungroup()</code></pre>
-<pre class="r"><code># the base plot
+  ungroup()
+</code></pre>
+
+<pre><code class="language-r"># the base plot
 p = plot_df %&gt;% 
   ggplot(aes(x=wpct_other, y=wpct_close)) + 
   geom_point() + 
   theme_minimal(base_size = 16) + 
-  geom_hline(yintercept = 0.5, size=0.5, color=&#39;steelblue&#39;) + 
-  geom_vline(xintercept = 0.5, size=0.5, color=&#39;steelblue&#39;) + 
-  labs(x=&quot;Win Pct. - Non close games&quot;, y=&quot;Win Pct. - close games&quot;)</code></pre>
+  geom_hline(yintercept = 0.5, size=0.5, color='steelblue') + 
+  geom_vline(xintercept = 0.5, size=0.5, color='steelblue') + 
+  labs(x=&quot;Win Pct. - Non close games&quot;, y=&quot;Win Pct. - close games&quot;)
+</code></pre>
+
 <p>Label the ones that are on the edges</p>
-<pre class="r"><code>records_quads = plot_df %&gt;% 
+
+<pre><code class="language-r">records_quads = plot_df %&gt;% 
   mutate(r2=(wpct_other - 0.5)**2 + (wpct_close - 0.5)**2, 
          quad=as.integer(wpct_other &gt;= 0.5) + 2 * as.integer(wpct_close &gt;= 0.5))
 
@@ -2004,13 +2278,54 @@ lab_df = records_quads %&gt;%
   mutate(r2_rank=row_number()) %&gt;% 
   filter(r2_rank &lt;= 10) %&gt;% 
   ungroup() %&gt;% 
-  mutate(name=paste(team_id, year_id))</code></pre>
-<pre class="r"><code># base plot with outliers labelled
+  mutate(name=paste(team_id, year_id))
+</code></pre>
+
+<pre><code class="language-r"># base plot with outliers labelled
 p2 = p + 
-  geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close, label=name))
-print(p2)</code></pre>
-<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-24-1.png" width="768" /></p>
-</div>
+  geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close-wpct_other, label=name))
+print(p2)
+</code></pre>
+
+<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-24-1.png" alt="plot of chunk unnamed-chunk-24" /></p>
+
+<pre><code class="language-r"># the base plot
+p = plot_df %&gt;% 
+  ggplot(aes(x=wpct_other, y=wpct_close-wpct_other)) + 
+  geom_point() + 
+  theme_minimal(base_size = 16) + 
+  geom_hline(yintercept = 0.0, size=0.5, color='steelblue') + 
+  geom_vline(xintercept = 0.5, size=0.5, color='steelblue') + 
+  labs(x=&quot;Win Pct. - Non close games&quot;, y=&quot;Win Pct.Diff. - (close - non-close)&quot;)
+</code></pre>
+
+<p>Label the ones that are on the edges</p>
+
+<pre><code class="language-r">records_quads = plot_df %&gt;% 
+  mutate(r2=(abs(wpct_other - 0.5))**1.2 + (abs(wpct_close-wpct_other))**1.4, 
+         quad=as.integer(wpct_other &gt;= 0.5) + 2 * as.integer(wpct_close - wpct_other &gt;= 0.0))
+
+lab_df = records_quads %&gt;% 
+  group_by(quad) %&gt;% 
+  arrange(-r2) %&gt;% 
+  mutate(r2_rank=row_number()) %&gt;% 
+  mutate(i1 = r2_rank &lt;= 12, 
+         i2 = wpct_other&gt;=0.65 &amp; abs(wpct_close-wpct_other)&lt;0.1, 
+         i3=wpct_close-wpct_other&gt;0.29,
+         iX = i1+i2+i3) %&gt;% 
+  filter(iX &gt; 0) %&gt;%
+  ungroup() %&gt;% 
+  mutate(name=paste(team_id, year_id))
+</code></pre>
+
+<pre><code class="language-r"># base plot with outliers labelled
+tdf = plot_df %&gt;% mutate(wp = w/g*162 - 81, wins_above_81=as.integer(round(wp/10)*10), wpx=ifelse(abs(wp)&gt;=9, wp, 0))
+
+p2 = p + geom_point(data=tdf, aes(color=wins_above_81)) + scale_color_gradient2(high  = 'orange1', low = 'steelblue') + geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close-wpct_other, label=name))
+print(p2)
+</code></pre>
+
+<p><img src="/post/2018-06-17-closeness-index-one-run-games_files/figure-html/unnamed-chunk-27-1.png" alt="plot of chunk unnamed-chunk-27" /></p>
 
 </main>
 

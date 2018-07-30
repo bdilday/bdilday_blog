@@ -722,8 +722,9 @@ lab_df = records_quads %>%
 
 ```r
 # base plot with outliers labelled
+tdf = plot_df %>% mutate(wp = w/g*162 - 81, wins_above_81=as.integer(round(wp/10)*10), wpx=ifelse(abs(wp)>=9, wp, 0))
+
 p2 = p + geom_point(data=tdf, aes(color=wins_above_81)) + scale_color_gradient2(high  = 'orange1', low = 'steelblue') + geom_text_repel(data = lab_df, aes(x=wpct_other, y=wpct_close-wpct_other, label=name))
-#> Error in fortify(data): object 'tdf' not found
 print(p2)
 ```
 

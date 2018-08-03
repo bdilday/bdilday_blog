@@ -1,5 +1,5 @@
 ---
-title: Facet Wrap with Limit in teh Grammar of Graphics?
+title: Facet Wrap with Limit in the Grammar of Graphics?
 author: ~
 date: '2018-07-29'
 slug: facet-wrap-with-limit
@@ -10,9 +10,7 @@ tags: []
 
 
   
-I have a case where I want to facet the data, using a subset of the groups. This post looks at how one might do this in `ggplot2` and asks how it fits into the grammar of graphics. All work on defining custom stats, geoms, and faceting is based on the expositions in the (`ggplot2` vignette on extending ggplot )<https://cran.r-project.org/web/packages/ggplot2/vignettes/extending-ggplot2.html>
-
-as well as the chapter on ggplot internals from (Bob Rudis)<https://rud.is/books/creating-ggplot2-extensions/demystifying-ggplot2.html>
+I have a case where I want to facet the data, using a subset of the groups. This post looks at how one might do this in `ggplot2` and asks how it fits into the grammar of graphics. All work on defining custom stats, geoms, and faceting is based on the expositions in the [`ggplot2` vignette on extending ggplot ](https://cran.r-project.org/web/packages/ggplot2/vignettes/extending-ggplot2.html) as well as the chapter on ggplot internals from [Bob Rudis](https://rud.is/books/creating-ggplot2-extensions/demystifying-ggplot2.html)
 
 ## Motivations
 
@@ -22,7 +20,7 @@ The purpose behind this faceting of a subset of the data is to have an interacti
 
 2. You want to plot a limited sample, ordered by some metric
 
-3. You want to plot a limited sample, order by an attribute of the plot
+3. You want to plot a limited sample, ordered by an attribute of the plot
 
 Below I'll go through each case in turn. It's the third case I'm most interested in here - the first two can be accomplished by pre-processing the data, but the third is more challenging.
 
@@ -32,14 +30,6 @@ Below I'll go through each case in turn. It's the third case I'm most interested
 ```r
 library(ggplot2)
 library(dplyr)
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
 # set the global theme
 ggplot2::theme_set(theme_minimal(base_size = 16))
 ```
@@ -47,7 +37,7 @@ ggplot2::theme_set(theme_minimal(base_size = 16))
 
 ## Data
 
-To illustrate, I'll generate some simulated data. The data are one-dimensional and uniformly distributed between 0 and 1. The number of cases for each group will vary according to a Poisson distribution. The number of groups needs to be fairly large - here I'll use 64.
+To illustrate, I'll generate some simulated data. The data are one-dimensional and uniformly distributed between 0 and 1. The number of cases for each group will vary according to a Poisson distribution. To illustrate the issue, the number of groups needs to be fairly large - here I'll use 64.
 
 
 ```r
@@ -223,8 +213,11 @@ StatBinFilter <- ggproto("StatBinFilter", StatBin,
   setup_data = function(data, params) {
     all_groups = as.vector(unique(data$group))
     nfilter = min(params$nfilter, length(all_groups))
-    
+  
+    # take only the first nfilter groups  
     idx = which(data$group %in% all_groups[1:nfilter])
+    
+    # take a subset of the data and pass it on to the rendering methods
     data[idx,]
   },
 
@@ -285,3 +278,66 @@ df1 %>%
 ```
 
 ![plot of chunk unnamed-chunk-16](/post/2018-07-29-facet-wrap-with-limit_files/figure-html/unnamed-chunk-16-1.png)
+
+## Case 3: plot a limited sample, ordered by an attribute of the plot
+
+An additional complication is if we want to order and filter by an attribute of the plot - for example, let's say we order by the largest number in any one bin. As we vary the binning this ordering will change. 
+
+Following is an attempt to filter the data based on the highest bar - in `compute_panel` I generate the histograms 
+
+
+```r
+StatBinFilter <- ggproto("StatBinFilter", StatBin, 
+  
+  setup_data = function(data, params) {
+    data
+  },
+
+  compute_panel = function(data, scales, nfilter=NULL, ...) {
+  
+    all_groups = as.vector(unique(data$group))
+    nfilter = min(nfilter, length(all_groups))
+    
+    tmp = StatBin$compute_panel(data, scales, ...)  
+    tmp2 = tmp %>% dplyr::group_by(group) %>% 
+      mutate(r=rank(-count, ties.method = "first")) %>% 
+      filter(r <= nfilter)
+    tmp2
+    },
+  
+  
+  
+  extra_params = c("na.rm", "nfilter")
+    
+)
+
+stat_bin_filter <- 
+  function (mapping = NULL, data = NULL, geom = "bar", position = "stack", 
+            ..., binwidth = NULL, bins = NULL, center = NULL, boundary = NULL, 
+            breaks = NULL, closed = c("right", "left"), pad = FALSE, 
+            na.rm = FALSE, nfilter=NULL, show.legend = NA, inherit.aes = TRUE) {
+    layer(data = data, mapping = mapping, stat = StatBinFilter, geom = geom, 
+          position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
+          params = list(binwidth = binwidth, bins = bins, center = center, 
+                        boundary = boundary, breaks = breaks, closed = closed, 
+                        pad = pad, na.rm = na.rm, nfilter = nfilter, ...))
+  }
+```
+
+
+```r
+df1 %>% ggplot(aes(x=x)) + stat_bin_filter(aes(group=g), nfilter = 2) + facet_wrap(~g) + theme_minimal(base_size = 8)
+#> `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![plot of chunk unnamed-chunk-18](/post/2018-07-29-facet-wrap-with-limit_files/figure-html/unnamed-chunk-18-1.png)
+
+Evidently what happened here is it's calling `compute_panel` for each panel in the facted plot - on the other hand I can't apply my filtering based on the highest bar unless I know the scales and the binning parameters - and what I'm trying to avoid is doing that computation in two places. 
+
+## Summary
+
+This is a bit of a WIP on issues surrounding faceting and the grammar of graphics. In summary, filtering the data is a valid statistical transformation. Faceting based on the filtered data seems valid in the grammar of graphics to me, but the technical implementation in `ggplot2` is challenging, due to the ordering of operations. In fairness, I have only started scratching the surface of `ggplot2` internals and it could be the capability is there and I've just missed it. I look forward to continuing this in subsequent studies and posts.
+
+
+
+

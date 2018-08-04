@@ -6,10 +6,19 @@
     <description>Recent content in Posts on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 07 Jul 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 29 Jul 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Facet Wrap with Limit in the Grammar of Graphics?</title>
+      <link>/2018/07/29/facet-wrap-with-limit/</link>
+      <pubDate>Sun, 29 Jul 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/07/29/facet-wrap-with-limit/</guid>
+      <description>I have a case where I want to facet the data, using a subset of the groups. This post looks at how one might do this in ggplot2 and asks how it fits into the grammar of graphics. All work on defining custom stats, geoms, and faceting is based on the expositions in the ggplot2 vignette on extending ggplot  as well as the chapter on ggplot internals from Bob Rudis</description>
+    </item>
     
     <item>
       <title>Storytelling With Data (SWD) Challenge: Your Choice Makover</title>

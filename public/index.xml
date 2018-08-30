@@ -6,10 +6,26 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 29 Jul 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 29 Aug 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Who&#39;s on First: A tidyeval tutorial</title>
+      <link>/2018/08/29/who-s-on-first-a-tidyeval-tutorial/</link>
+      <pubDate>Wed, 29 Aug 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/08/29/who-s-on-first-a-tidyeval-tutorial/</guid>
+      <description>Abbott: &amp;hellip; Well, let&amp;rsquo;s see, we have on the bags, Who&amp;rsquo;s on first, What&amp;rsquo;s on second, I Don&amp;rsquo;t Know is on third&amp;hellip;
+Costello: That&amp;rsquo;s what I want to find out.
+Abbott: I say Who&amp;rsquo;s on first, What&amp;rsquo;s on second, I Don&amp;rsquo;t Know&amp;rsquo;s on third.
+Costello: Are you the manager?
+Abbott: Yes.
+Costello: You gonna be the coach too?
+Abbott: Yes.
+Costello: And you don&amp;rsquo;t know the fellows&amp;rsquo; names?</description>
+    </item>
     
     <item>
       <title>Facet Wrap with Limit in the Grammar of Graphics?</title>

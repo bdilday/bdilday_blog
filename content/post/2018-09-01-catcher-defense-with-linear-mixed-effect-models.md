@@ -7,7 +7,7 @@ categories: []
 tags: []
 ---
 
-In baseball, measuring catcher defense is notoriously tricky. This is because it includes things like pitch framing and game calling that aren't captured in traditional stats sheets. One approach to this is to do a "with-or-without" you analysis, in other words look at the difference in outcome depending on catcher, holding as many other contributing factors constant as possible. One prominent example of this is [Tom Tango's analysis of passed balls and wild pitches](http://tangotiger.net/catchers.html) - events where the responsibility can reasonably be assumed to be limited to the pitcher and catcher. 
+In baseball, measuring catcher defense is notoriously tricky. This is because it includes things like pitch framing and game calling that aren't captured in traditional stats sheets. One approach to this is to do a "with-or-without you" analysis, in other words look at the difference in outcome depending on catcher, holding as many other contributing factors constant as possible. One prominent example of this is [Tom Tango's analysis of passed balls and wild pitches](http://tangotiger.net/catchers.html) - events where the responsibility can reasonably be assumed to be limited to the pitcher and catcher. 
 
 A related approach is to use generalized linear mixed effect models. Notably, this is the approach taken by Baseball Prospectus in [their measurements of catcher framing](https://www.baseballprospectus.com/news/article/25514/moving-beyond-wowy-a-mixed-approach-to-measuring-catcher-framing/).
 
@@ -25,9 +25,9 @@ My analysis looks at the number of runs scored by the opponent, and tries to ass
 
 * park
 
-This makes assigning credit to the catcher inherently more noisy than something more constrained like wild pitches, passed balls, or called strikes. Nevertheless, I'm going to fit the model and see what happens - as I've [written before I don't believe in letting the perfect be the enemy of the good](http://graphswithcodeanddata.xyz/2018/06/17/closeness-index-one-run-games/)
+This makes assigning credit to the catcher inherently more noisy than something more constrained like wild pitches, passed balls, or called strikes. Nevertheless, I'm going to fit the model and see what happens - as I've written before [I don't believe in letting the perfect be the enemy of the good](http://graphswithcodeanddata.xyz/2018/06/17/closeness-index-one-run-games/)
 
-The present analysis is an alternative version of a topic I've looked at before, which is estimating [catcher defense back to 1908](https://rpubs.com/bdilday/205604) using the same linear mixed effect modeling framework. For the work linked above I used only game final scores. What I do here is to count only the runs scored through the end of the 5th inning. The logic behind that choice is that it will mitigate complications of knowing which relief pitchers were brought in - it's mostly true that the starting pitcher will still be there in the 5th. In this case I use retrosheet play-by-play data from 1961 - 2017. 
+The present analysis is an alternative version of a topic I've looked at before, which is estimating [catcher defense back to 1911](https://rpubs.com/bdilday/205604) using the same linear mixed effect modeling framework. For the work linked above I used only game final scores. What I do here is to count only the runs scored through the end of the 5th inning. The logic behind that choice is that it will mitigate complications of knowing which relief pitchers were brought in - it's mostly true that the starting pitcher will still be there in the 5th. In the current analysis I use retrosheet play-by-play data from 1961 - 2017. 
 
 ## linear mixed effect models
 
@@ -35,8 +35,8 @@ Linear mixed effect models are appropriate when there are groups within the data
 
 The linear mixed effect model itself is essentially a regression with a L2 penalty - a ridge regression. One main difference is that in a ridge regression you specify the penalty strength, and the same value applies to all variables. In the linear mixed effect model, the penalty is applied only to the random effects, the strength of the penalty varies across groups, and the strength values aren't specified but are estimated based on maximum likelihood analysis of the profiled likelihood - the likelihood integrated over the random effect values. Technically what the model gives as output is the mode of the random effects values. In many cases this is a good approximation to the mean of the posterior probability distribution, but in general has a somewhat squishy interpretation.
 
-A great interactive visualization of mixed effects models [is available here](http://mfviz.com/hierarchical-models/). A good technical discussion is available in the [`lme4`"Computational Methods" vignette](https://cran.r-project.org/web/packages/lme4/index.html)
-]
+A great interactive visualization of mixed effects models [is available here](http://mfviz.com/hierarchical-models/). A good technical discussion is available in the [`lme4` "Computational Methods" vignette](https://cran.r-project.org/web/packages/lme4/index.html)
+
 
 ## The data
 
@@ -185,7 +185,7 @@ So the model tells us:
 
 * worst defense: 1996 Tigers
 
-The "defense" value here is based on runs scored so there's and interdependence between pitchers and defensive play. So it's probably more correct to think of it as the best team run prevention.
+The "defense" value here is based on runs scored so there's an interdependence between pitchers and defensive play - it's probably more correct to think of it as the best team run prevention.
 
 * best offense: 2015 Blue Jays
 
@@ -337,7 +337,7 @@ pitcher_rankings$yearly %>%
 #> 10  martp001   2003 -0.5593239 -16.22039         2 Pedro Martinez
 ```
 
-Seems plausible. I'd like to see Pedro 2001, and I'm sure about Kevin Appier, but anyway moving on...
+Seems plausible. I'd like to see Pedro 2001, and I'm not sure I like seeing Kevin Appier on there, but anyway moving on...
 
 The top ten runs per season
 
@@ -411,7 +411,7 @@ And finally, the best defensive catchers according to this methodology
 catcher_rankings = ranef_rankings(ranef_summary_df, "def_catcher")
 ```
 
-The top ten runs-per game by pitcher season
+The top ten runs-per game by catcher season
 
 
 ```r
@@ -431,8 +431,6 @@ catcher_rankings$yearly %>%
 #> 9   cartg001   1979 -0.07873492 -10.629214         1     Gary Carter
 #> 10  varij001   2001 -0.07814173  -3.672661         1   Jason Varitek
 ```
-
-Seems plausible. I'd like to see Pedro 2001, and I'm sure about Kevin Appier, but anyway moving on...
 
 The top ten runs per season
 
@@ -507,8 +505,7 @@ There are a number of ways the study could be improved on in a follow up includi
 
 * model the runs scored as a non-Gaussian random variable, e.g. zero-inflated negative binomial
 
-
-
+* normalize the runs distribution across seasons - as it stands it favors high run environments (because it measures absolute runs and there are more to go around when the environment is high)
 
 
 

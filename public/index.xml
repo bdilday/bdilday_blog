@@ -6,10 +6,19 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 29 Aug 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 01 Sep 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Catcher Defense with Linear Mixed Effect Models</title>
+      <link>/2018/09/01/catcher-defense-with-linear-mixed-effect-models/</link>
+      <pubDate>Sat, 01 Sep 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/09/01/catcher-defense-with-linear-mixed-effect-models/</guid>
+      <description>In baseball, measuring catcher defense is notoriously tricky. This is because it includes things like pitch framing and game calling that aren&amp;rsquo;t captured in traditional stats sheets. One approach to this is to do a &amp;ldquo;with-or-without&amp;rdquo; you analysis, in other words look at the difference in outcome depending on catcher, holding as many other contributing factors constant as possible. One prominent example of this is Tom Tango&amp;rsquo;s analysis of passed balls and wild pitches - events where the responsibility can reasonably be assumed to be limited to the pitcher and catcher.</description>
+    </item>
     
     <item>
       <title>Who&#39;s on First: A tidyeval tutorial</title>

@@ -1,0 +1,345 @@
+---
+title: Catcher Defense with Linear Mixed Effect Models
+author: ~
+date: '2018-09-01'
+slug: catcher-defense-with-linear-mixed-effect-models
+categories: []
+tags: []
+---
+
+In baseball, measuring catcher defense is notoriously tricky. This is because it includes things like pitch framing and game calling that aren't captured in traditional stats sheets. One approach to this is to do a "with-or-without you" analysis, in other words look at the difference in outcome depending on catcher, holding as many other contributing factors constant as possible. One prominent example of this is [Tom Tango's analysis of passed balls and wild pitches](http://tangotiger.net/catchers.html) - events where the responsibility can reasonably be assumed to be limited to the pitcher and catcher. 
+
+A related approach is to use generalized linear mixed effect models. Notably, this is the approach taken by Baseball Prospectus in [their measurements of catcher framing](https://www.baseballprospectus.com/news/article/25514/moving-beyond-wowy-a-mixed-approach-to-measuring-catcher-framing/).
+
+The analysis I present here lies somewhere in between these two - but is somewhat orthogonal as well. It's different than the Baseball Prospectus approach because it controls for many fewer factors and it's orthogonal to both because it measures an outcome that has many more causal factors in addition to pitcher and catcher identity.
+
+## My analysis
+
+My analysis looks at the number of runs scored by the opponent, and tries to assign credit to the catcher. There are lots of factors besides catcher that contribute to runs scored, for example,
+
+* pitcher
+
+* defense
+
+* batters(s)
+
+* park
+
+This makes assigning credit to the catcher inherently more noisy than something more constrained like wild pitches, passed balls, or called strikes. Nevertheless, I'm going to fit the model and see what happens - as I've written before [I don't believe in letting the perfect be the enemy of the good](http://graphswithcodeanddata.xyz/2018/06/17/closeness-index-one-run-games/)
+
+The present analysis is an alternative version of a topic I've looked at before, which is estimating [catcher defense back to 1911](https://rpubs.com/bdilday/205604) using the same linear mixed effect modeling framework. For the work linked above I used only game final scores. What I do here is to count only the runs scored through the end of the 5th inning. The logic behind that choice is that it will mitigate complications of knowing which relief pitchers were brought in - it's mostly true that the starting pitcher will still be there in the 5th. In the current analysis I use retrosheet play-by-play data from 1961 - 2017. 
+
+## linear mixed effect models
+
+Linear mixed effect models are appropriate when there are groups within the data, and there are coefficients that vary across groups. The canonical example I think of is schools - if you model outcomes (test scores, or graduation rates, say) as a function of spending on after school programs or something similar, you would expect a positively correlated relationship between outcomes and spending. However, each school starts from it's own baseline. So if you threw them all in to the same linear regression model, you'd get a model that doesn't match the reality. In the linear mixed effect model framework you can fit a slope for outcome vs spending that is constant across groups (the fixed effect) and a intercept that is different for each group (the random effect). In the baseball context, the catchers, pitchers, park, offense and defense are all modeled as random effects. 
+
+The linear mixed effect model itself is essentially a regression with a L2 penalty - a ridge regression. One main difference is that in a ridge regression you specify the penalty strength, and the same value applies to all variables. In the linear mixed effect model, the penalty is applied only to the random effects, the strength of the penalty varies across groups, and the strength values aren't specified but are estimated based on maximum likelihood analysis of the profiled likelihood - the likelihood integrated over the random effect values. Technically what the model gives as output is the mode of the random effects values. In many cases this is a good approximation to the mean of the posterior probability distribution, but in general has a somewhat squishy interpretation.
+
+A great interactive visualization of mixed effects models [is available here](http://mfviz.com/hierarchical-models/). A good technical discussion is available in the [`lme4` "Computational Methods" vignette](https://cran.r-project.org/web/packages/lme4/index.html)
+
+
+## The data
+
+For this analysis I pulled event data from my local copy of the retrosheet play-by-play data. I limited the seasons from 1961 through 2017. For each game I took the starting catcher ID, the starting pitcher ID, the home team ID (i.e. the park), the season year, the score through the end of the 5th inning. The data are available as [a gist here](https://gist.github.com/bdilday/6f85ed94c2fe51a623a1ec7ddd0e8151).
+
+``` {r message=FALSE} 
+library(dplyr)
+```
+
+``` {r}
+# load the data 
+df = readr::read_csv("https://gist.githubusercontent.com/bdilday/6f85ed94c2fe51a623a1ec7ddd0e8151/raw/c1d7254163b5eb777025028734cf0b8f53087270/catcher_defense_data.csv")
+df$year_id = factor(df$year_id)
+head(df)
+```
+
+Note that each pitcher, team, defense, etc have to have the season appended so that each season is treated as a different entity.
+
+The model I use is this,
+
+``` {r}
+library(lme4)
+model_catcher_def = function(df) {
+  lmer_mod = lmer(off_score ~ 
+                    1 + year_id + 
+                    (1|park_id) + (1|off_team) + 
+                    (1|def_team) + (1|def_pitcher) + 
+                    (1|def_catcher), data=df)
+}
+```
+
+## model analysis
+
+Here I execute the model
+
+``` {r}
+lmer_mod = model_catcher_def(df)
+```
+
+Here's the summary of the standard deviation of the random effects. One interpretation of these is that the higher the value, the more significant that factor is in determining the outcome. So we can see that pitcher is most important, followed by park, offensive team, defensive team and finally, catcher - it would certainly be surprising if we had found catcher was the most important factor! 
+
+``` {r}
+summary(lmer_mod)$varcor
+```
+
+In order to extract the random effect values, I define some helpers
+
+``` {r}
+# parse random effects to a data frame
+ranef_to_df = function(lmer_mod, ranef_nm) {
+  rr = ranef(lmer_mod)
+  data.frame(k=rownames(rr[ranef_nm][[1]]),
+             value=rr[ranef_nm][[1]][,1],
+             ranef_nm = ranef_nm,
+             stringsAsFactors = FALSE)
+
+}
+
+# loop over all random effects and parse to data frame
+parse_ranefs = function(lmer_mod) {
+  rfs = names(ranef(lmer_mod))
+  ll = lapply(rfs, function(rf) {
+    ranef_to_df(lmer_mod, rf)
+  }) %>% dplyr::bind_rows()
+}
+```
+
+Here I get all the random effects
+
+``` {r}
+ranef_summary_df = parse_ranefs(lmer_mod)
+```
+
+The columns are:
+
+* `k`: the unique key of the random effect
+
+* `value`: the value, in units of runs per 15 outs
+
+* `ranef_nm`: the name of the random effect
+
+Let's see which keys had the highest (and lowest) values, for each random effect. 
+
+First, the team variables
+
+``` {r}
+ranef_summary_df %>% 
+  group_by(ranef_nm) %>% 
+  filter(value==min(value) | value == max(value)) %>% 
+  ungroup() %>% filter(ranef_nm %in% 
+                         c("def_team", "off_team", "park_id"))
+  
+```
+
+So the model tells us:
+
+* best defense: 1995 Braves
+
+* worst defense: 1996 Tigers
+
+The "defense" value here is based on runs scored so there's an interdependence between pitchers and defensive play - it's probably more correct to think of it as the best team run prevention.
+
+* best offense: 2015 Blue Jays
+
+* worst offense: 1964 Astros
+
+The 2015 Blue Jays as best offense since 1961 seems surprising. I can double check by looking at the z-score of runs scored, with the `Lahman` data.
+
+``` {r}
+Lahman::Teams %>% 
+  group_by(yearID) %>% 
+  mutate(m=mean(R), s=sd(R), z=(R-m)/s) %>% 
+  select(yearID, teamID, R, m, s, z) %>% ungroup() %>% 
+  arrange(-z) %>% head(10) %>% as.data.frame() 
+```
+
+Well, there you have it! 2015 Blue Jays have the highest z-score for runs scored in baseball history! 
+
+* largest park factor: 1996 Colorado
+
+* lowest park factor: 1998 San Diego
+
+Seems plausible.
+
+Now for the player based estimates. First I define a table to match the records and get the actual names instead of the esoteric retrosheet IDs.
+
+``` {r}
+pl_lkup = Lahman::Master %>% 
+  mutate(nameFull = paste(nameFirst, nameLast)) %>%
+  dplyr::select(retroID, nameFull)
+```
+
+Get the player based min and max random effects
+
+``` {r}
+player_summary = ranef_summary_df %>% 
+  group_by(ranef_nm) %>% 
+  filter(value==min(value) | value == max(value)) %>% 
+  filter(ranef_nm %in% c("def_pitcher", "def_catcher"))
+
+# add a new column to strip the year from the name to merge
+# with the player lookup
+player_summary$retroID = sapply(
+  stringr::str_split(player_summary$k, "_"), 
+  function(s) {s[[1]]})
+
+player_summary %>% 
+  merge(pl_lkup, by="retroID") %>% 
+  dplyr::select(nameFull, k, value, ranef_nm)
+```
+
+So we have
+
+* best pitcher: 2004 Randy Johnson
+
+* worst pitcher: 1996 Todd Von Poppel
+
+Passes the sniff test.
+
+* best catcher: 1996 Charles Johnson
+
+* worst catcher: 1985 Mike Heath
+
+I recall Charles Johnson being considered a great defensive catcher. As far as Mike Heath, I have no idea if that's plausible or not.
+
+## yearly and career total values
+
+The random effects values tell us run values on a per game basis. Here I define a function to aggregate over a season, and over a career, to define a total-value counting stat.
+
+
+``` {r}
+ranef_rankings = function(ranef_summary_df, ranef_nm_) {
+  pl_lkup = Lahman::Master %>% 
+    mutate(nameFull = paste(nameFirst, nameLast)) %>%
+    dplyr::select(retroID, nameFull)
+
+  aa = ranef_summary_df %>%
+    filter(ranef_nm == ranef_nm_) %>%
+    merge(df, by.x="k", by.y=ranef_nm_)
+
+  aa$player_id = sapply(stringr::str_split(aa$k, "_"), 
+                         function(s) {s[[1]]})
+  aa$season = sapply(stringr::str_split(aa$k, "_"), 
+                     function(s) {s[[2]]})
+  career = aa %>%
+    group_by(player_id) %>%
+    summarise(mean_value=mean(value), 
+              sum_value=sum(value)) %>% arrange(mean_value) %>%
+    mutate(mean_rank = row_number()) %>% ungroup() %>%
+    merge(pl_lkup, by.x="player_id", by.y="retroID")
+
+  yearly = aa %>%
+    group_by(player_id, season) %>%
+        summarise(mean_value=mean(value), 
+              sum_value=sum(value)) %>% arrange(mean_value) %>%
+    mutate(mean_rank = row_number()) %>% ungroup() %>%
+    merge(pl_lkup, by.x="player_id",by.y="retroID")
+
+  list(yearly = yearly, career = career)
+}
+```
+
+### pitchers
+
+Although the point here was to look at catchers, I'll first apply this to pitchers as a sanity check.
+
+``` {r}
+pitcher_rankings = ranef_rankings(ranef_summary_df, "def_pitcher")
+```
+
+The top ten runs-per game by pitcher season
+
+``` {r}
+pitcher_rankings$yearly %>% 
+  arrange(mean_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+
+Seems plausible. I'd like to see Pedro 2001, and I'm not sure I like seeing Kevin Appier on there, but anyway moving on...
+
+The top ten runs per season
+
+``` {r}
+pitcher_rankings$yearly %>% 
+  arrange(sum_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+
+The top ten mean per game over the career
+
+``` {r}
+pitcher_rankings$career %>% 
+  arrange(mean_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+
+The top ten total over the career
+
+``` {r}
+pitcher_rankings$career %>% 
+  arrange(sum_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+  
+### catchers
+
+And finally, the best defensive catchers according to this methodology
+
+``` {r}
+catcher_rankings = ranef_rankings(ranef_summary_df, "def_catcher")
+```
+
+The top ten runs-per game by catcher season
+
+``` {r}
+catcher_rankings$yearly %>% 
+  arrange(mean_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+
+The top ten runs per season
+
+``` {r}
+catcher_rankings$yearly %>% 
+  arrange(sum_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+
+The top ten mean per game over the career
+
+``` {r}
+catcher_rankings$career %>% 
+  arrange(mean_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+
+The top ten total over the career
+
+``` {r}
+catcher_rankings$career %>% 
+  arrange(sum_value) %>% 
+  head(10) %>% 
+  as.data.frame()
+```
+  
+## Conclusion
+
+I've presented a way of using linear mixed effects models to measure overall catcher defense, encompassing framing, game calling, etc. As a consequence of the mixed effect model, we also get pitcher estimates that can be used as a sanity check. There is a tight coupling of pitcher with defense and there's anecdotal evidence that the model has not adequately distinguished the independent effects of those two factors - and a similar, but probably lesser, effect exists for catcher numbers. So these results should be though of as, ahem, ballpark estimates. 
+
+There are a number of ways the study could be improved on in a follow up including,
+
+* use more seasons, based on box score data
+
+* model the runs scored as a non-Gaussian random variable, e.g. zero-inflated negative binomial
+
+* normalize the runs distribution across seasons - as it stands it favors high run environments (because it measures absolute runs and there are more to go around when the environment is high)
+
+
+

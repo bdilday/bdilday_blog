@@ -3,6 +3,11 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>/2018/12/10/normalization-of-product-of-two-gaussians/</loc>
+    <lastmod>2018-12-10T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/2018/09/01/catcher-defense-with-linear-mixed-effect-models/</loc>
     <lastmod>2018-09-01T00:00:00+00:00</lastmod>
   </url>
@@ -57,6 +62,10 @@
   </url>
   
   <url>
+    <loc>/1/01/01/</loc>
+  </url>
+  
+  <url>
     <loc>/categories/baseball/</loc>
     <lastmod>2018-05-12T00:00:00+00:00</lastmod>
     <priority>0</priority>
@@ -70,7 +79,7 @@
   
   <url>
     <loc>/post/</loc>
-    <lastmod>2018-09-01T00:00:00+00:00</lastmod>
+    <lastmod>2018-12-10T00:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   
@@ -87,7 +96,7 @@
   
   <url>
     <loc>/</loc>
-    <lastmod>2018-09-01T00:00:00+00:00</lastmod>
+    <lastmod>2018-12-10T00:00:00+00:00</lastmod>
     <priority>0</priority>
   </url>
   

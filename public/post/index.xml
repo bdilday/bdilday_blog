@@ -6,10 +6,19 @@
     <description>Recent content in Posts on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 01 Sep 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 10 Dec 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Normalization of product of two Gaussians</title>
+      <link>/2018/12/10/normalization-of-product-of-two-gaussians/</link>
+      <pubDate>Mon, 10 Dec 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/12/10/normalization-of-product-of-two-gaussians/</guid>
+      <description>In Bayesian statistical analysis it is common to encounter the product of two Gaussian functions, representing the likelihood and the prior for a Normally distributed random variable. As articulated by John D. Cook here, it&amp;rsquo;s usually the case that one doesn&amp;rsquo;t need the normalization factor of the posterior distribution and so it&amp;rsquo;s difficult to find a clear reference for what it is. The post by John D. Cook mentioned above does show the result, but the purpose of my post here is to flesh out the math a little bit more, and to state the result i a way I think is more intuitive.</description>
+    </item>
     
     <item>
       <title>Catcher Defense with Linear Mixed Effect Models</title>
@@ -114,6 +123,16 @@ Scraping current standings For scraping current standings there are a variety of
       
       <guid>/1/01/01/</guid>
       <description>RS and RA contours with ggplot       code{white-space: pre;} pre:not([class]) { background-color: white; }  if (window.hljs) { hljs.configure({languages: []}); hljs.initHighlightingOnLoad(); if (document.readyState &amp;&amp; document.readyState === &#34;complete&#34;) { window.setTimeout(function() { hljs.initHighlighting(); }, 0); } }  h1 { font-size: 34px; } h1.title { font-size: 38px; } h2 { font-size: 30px; } h3 { font-size: 24px; } h4 { font-size: 18px; } h5 { font-size: 16px; } h6 { font-size: 12px; } .</description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>/1/01/01/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/1/01/01/</guid>
+      <description>So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are 21 - 9, and 1/2 game up on the Astros despite having a run-differential of about 100 runs less. This post looks at records in one-run games over the years.
+Libraries library(RPostgres) library(DBI) library(dplyr) library(ggplot2) library(magrittr) # for the in-place assignment, %&amp;lt;&amp;gt;% library(ggrepel)  Data I’m using the game data from retrosheet.</description>
     </item>
     
   </channel>

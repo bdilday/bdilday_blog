@@ -113,7 +113,7 @@ $$\frac{1}{2 \pi \sigma_1 \sigma_2} \exp{(-\frac{1}{2}\frac{(x-\mu_1)^2}{\sigma_
 
 $$ = \frac{1}{2 \pi \sigma_1 \sigma_2} \exp({A \delta / 2}) \exp(-\frac{1}{2} \frac{(x-\mu)^2}{\sigma^2})
 $$
-$$ = \frac{1}{\sqrt{2 \pi}} \frac{1}{(1/\sigma_1^2 + 1/\sigma_2^2)^{-1}} \exp(-\frac{1}{2} \frac{(x-\mu)^2}{\sigma^2}) \times \frac{1}{\sqrt{2 \pi}} \frac{1}{\sigma_1^2 + \sigma_2^2}  \exp({A \delta / 2}) $$
+$$ = \frac{1}{\sqrt{2 \pi}} \frac{1}{(1/\sigma_1^2 + 1/\sigma_2^2)^{-1/2}} \exp(-\frac{1}{2} \frac{(x-\mu)^2}{\sigma^2}) \times \frac{1}{\sqrt{2 \pi}} \frac{1}{\sqrt{\sigma_1^2 + \sigma_2^2}}  \exp({A \delta / 2}) $$
 
 i.e. 
 

@@ -125,15 +125,5 @@ Scraping current standings For scraping current standings there are a variety of
       <description>RS and RA contours with ggplot       code{white-space: pre;} pre:not([class]) { background-color: white; }  if (window.hljs) { hljs.configure({languages: []}); hljs.initHighlightingOnLoad(); if (document.readyState &amp;&amp; document.readyState === &#34;complete&#34;) { window.setTimeout(function() { hljs.initHighlighting(); }, 0); } }  h1 { font-size: 34px; } h1.title { font-size: 38px; } h2 { font-size: 30px; } h3 { font-size: 24px; } h4 { font-size: 18px; } h5 { font-size: 16px; } h6 { font-size: 12px; } .</description>
     </item>
     
-    <item>
-      <title></title>
-      <link>/1/01/01/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/1/01/01/</guid>
-      <description>So far this season the Seattle Mariners have won a historically high number of one-run games. As of this writing they are 21 - 9, and 1/2 game up on the Astros despite having a run-differential of about 100 runs less. This post looks at records in one-run games over the years.
-Libraries library(RPostgres) library(DBI) library(dplyr) library(ggplot2) library(magrittr) # for the in-place assignment, %&amp;lt;&amp;gt;% library(ggrepel)  Data I’m using the game data from retrosheet.</description>
-    </item>
-    
   </channel>
 </rss>

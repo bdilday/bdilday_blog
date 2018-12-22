@@ -14,8 +14,55 @@ $$ P(x_i | t) ~
 \sim
 \frac{1}{2 \pi \sigma_i \sigma_t}  
 \int d\mu 
-\exp{(-\frac{1}{2} \frac{(x_i - \mu)}{\sigma_i^2})}
-\exp{(-\frac{1}{2} \frac{(\mu - t)}{\sigma_t^2})}
+\exp{(-\frac{1}{2} \frac{(x_i - \mu)^2}{\sigma_i^2})}
+\exp{(-\frac{1}{2} \frac{(\mu - t)^2}{\sigma_t^2})}
 $$
 
-In the last post I confirmed that the 
+In the [last post](../../../../2018/12/10/normalization-of-product-of-two-gaussians/) I verified that the value of the integral is a Normal distribution, 
+
+$$P(x_i|t) \sim N(t, \sqrt{\sigma_i^2 + \sigma_t^2})$$
+
+$$P(x_i|t) = \frac{1}{\sqrt{2 \pi (\sigma_i^2 + \sigma_t^2)}}
+\exp{(-\frac{1}{2} \frac{(x_i - t)^2}{\sigma_i^2 +\sigma_t^2})}
+$$
+
+## Estimate of population parameters with maximum likelihood
+
+Given a set of observations of `$X$`, we can use the above expression to estimate the population parameters, `$t$` and `$\sigma_t$`. In this case teh overall likelihood is the product of the individual likelihoods,
+
+$$ L = \Pi_i P(x_i | t)$$
+Then the log-likelihood (actually -2 times the log-likelihood) is,
+
+$$ l = - 2 \ln{L} = 
+\Sigma_i 
+\frac{(x_i - t)^2}{\sigma_i^2 +\sigma_t^2} + \Sigma_i \ln{(\sigma_i^2 +\sigma_t^2)}$$
+
+The maximum likelihood values are determined by setting the first derivatives to 0 and solving for `$t$` and `$\sigma_t$`,
+
+## value of t
+
+$$ \frac{\partial l}{\partial t} = 2 \Sigma_i \frac{(t - x_i)}{\sigma_i^2 +\sigma_t^2}$$
+
+$$ t = 
+\frac{
+\Sigma_i {x_i / (\sigma_i^2 +\sigma_t^2})
+}
+{\Sigma_i {1 / (\sigma_i^2 +\sigma_t^2)}
+}$$
+
+## value of `$\sigma_t$`
+
+$$ 
+\frac{\partial l}{\partial \sigma_t} = 
+2 \sigma_t (
+- \Sigma_i \frac{(t - x_i)^2}{\sigma_i^2 +\sigma_t^2} 
++ 
+\Sigma_i {\frac{1}{\sigma_i^2 +\sigma_t^2}})$$
+
+## solving the equations
+
+These equations are coupled and non-linear so there's no closed form solution. However, we can investigate the limiting behavior in three interesting scenarios.
+
+### All `$\sigma_i$` equal 
+
+

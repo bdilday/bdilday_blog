@@ -6,10 +6,21 @@
     <description>Recent content on graphswithcodeanddata</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 10 Dec 2018 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 22 Dec 2018 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Estimating latent Gaussian variable with maximum likelihood of Gaussian-product integral</title>
+      <link>/2018/12/22/estimating-latent-gaussian-variable-with-maximum-likelihood-of-gaussian-product-integral/</link>
+      <pubDate>Sat, 22 Dec 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/12/22/estimating-latent-gaussian-variable-with-maximum-likelihood-of-gaussian-product-integral/</guid>
+      <description>Suppose we have a population with a Normal distribution of some property, $t$, i.e. $t_i \sim N(\mu, \sigma_t$. For each member of the population we make a noisy measurement of the value, where the error distribution is Normal, $\epsilon_i \sim N(0, \sigma_i)$. The probability to make an observation $x_i$ is then,
+$$ P(x_i | t) ~ \sim \frac{1}{2 \pi \sigma_i \sigma_t}
+\int d\mu \exp{(-\frac{1}{2} \frac{(x_i - \mu)^2}{\sigma_i^2})} \exp{(-\frac{1}{2} \frac{(\mu - t)^2}{\sigma_t^2})} $$</description>
+    </item>
     
     <item>
       <title>Normalization of product of two Gaussians</title>
@@ -124,15 +135,6 @@ Scraping current standings For scraping current standings there are a variety of
       <guid>/about/</guid>
       <description>This blog is created by Ben Dilday. I&amp;rsquo;m a data scientist in the New York area. Previously I&amp;rsquo;ve been a software engineer (focusing on augmented reality applications), an instructor of physics and astronomy, an astrophysicist (studying supernovas and dark energy), and a grad student in Physics (at the University of Chicago).
 I created this blog because I realized that the number one thing I&amp;rsquo;m hoping to find when I venture on to the internet is some cool graphs!</description>
-    </item>
-    
-    <item>
-      <title></title>
-      <link>/1/01/01/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/1/01/01/</guid>
-      <description>RS and RA contours with ggplot       code{white-space: pre;} pre:not([class]) { background-color: white; }  if (window.hljs) { hljs.configure({languages: []}); hljs.initHighlightingOnLoad(); if (document.readyState &amp;&amp; document.readyState === &#34;complete&#34;) { window.setTimeout(function() { hljs.initHighlighting(); }, 0); } }  h1 { font-size: 34px; } h1.title { font-size: 38px; } h2 { font-size: 30px; } h3 { font-size: 24px; } h4 { font-size: 18px; } h5 { font-size: 16px; } h6 { font-size: 12px; } .</description>
     </item>
     
   </channel>

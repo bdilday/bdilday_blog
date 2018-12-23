@@ -34,20 +34,20 @@ $$ L = \Pi_i P(x_i | t)$$
 Then the log-likelihood (actually -2 times the log-likelihood) is,
 
 $$ l = - 2 \ln{L} = 
-\Sigma_i 
-\frac{(x_i - t)^2}{\sigma_i^2 +\sigma_t^2} + \Sigma_i \ln{(\sigma_i^2 +\sigma_t^2)}$$
+\sum_i 
+\frac{(x_i - t)^2}{\sigma_i^2 +\sigma_t^2} + \sum_i \ln{(\sigma_i^2 +\sigma_t^2)}$$
 
 The maximum likelihood values are determined by setting the first derivatives to 0 and solving for `$t$` and `$\sigma_t$`,
 
 ## value of t
 
-$$ \frac{\partial l}{\partial t} = 2 \Sigma_i \frac{(t - x_i)}{\sigma_i^2 +\sigma_t^2}$$
+$$ \frac{\partial l}{\partial t} = 2 \sum_i \frac{(t - x_i)}{\sigma_i^2 +\sigma_t^2}$$
 
 $$ t = 
 \frac{
-\Sigma_i {x_i / (\sigma_i^2 +\sigma_t^2})
+\sum_i {x_i / (\sigma_i^2 +\sigma_t^2})
 }
-{\Sigma_i {1 / (\sigma_i^2 +\sigma_t^2)}
+{\sum_i {1 / (\sigma_i^2 +\sigma_t^2)}
 }$$
 
 ## value of `$\sigma_t$`
@@ -55,14 +55,130 @@ $$ t =
 $$ 
 \frac{\partial l}{\partial \sigma_t} = 
 2 \sigma_t (
-- \Sigma_i \frac{(t - x_i)^2}{\sigma_i^2 +\sigma_t^2} 
+- \sum_i \frac{(t - x_i)^2}{(\sigma_i^2 +\sigma_t^2)^2} 
 + 
-\Sigma_i {\frac{1}{\sigma_i^2 +\sigma_t^2}})$$
+\sum_i {\frac{1}{\sigma_i^2 +\sigma_t^2}})$$
 
 ## solving the equations
 
-These equations are coupled and non-linear so there's no closed form solution. However, we can investigate the limiting behavior in three interesting scenarios.
+These equations are coupled and non-linear so there's no closed form solution. However, we can investigate the limiting behavior in two interesting scenarios.
 
 ### All `$\sigma_i$` equal 
+
+If `$\sigma_i = \sigma_x$` for all `$i$`, then these simplify to 
+
+$$ t = \sum_i x_i $$
+
+$$\frac{1}{(\sigma_x^2 +\sigma_t^2)^2} \sum_i (t - x_i)^2 = 
+\frac{N}{\sigma_x^2 +\sigma_t^2}$$
+
+$$ \sigma_t^2 = \frac{1}{N} \sum_i (t - x_i)^2 - \sigma_x^2$$
+
+where `$N$` is the number of observations of `$X$`.
+
+The result for `$\sigma_t$` says that the variance of the latent population is the sample variance minus the noise variance.
+
+### `$\sigma_i \ll \sigma_t$`
+
+In this limit the noise is negligible - each measurement very precisely measures the latent value, `$t$`. Then
+
+$$ t = \sum_i x_i$$
+
+$$ \sigma_t^2 = \frac{1}{N} \sum_i (t - x_i)^2$$, 
+
+i.e. the variance of the latent variable, `$t$` is equal to the sample variance.
+
+## multi-dimensional version
+
+In more than 1-dimension, `$t$` becomes a vector and `$\sigma_i$` and `$\sigma_t$` covariance matrices. The log-likelihood is then,
+
+$$ l = - 2 \ln{L} = 
+\sum_i 
+(x_i - t) (\Gamma_i + \Gamma_t)^{-1} (x_i - t)^{T} + \sum_i \ln{|\Gamma_i + \Gamma_t|}$$
+
+
+where `$\Gamma$` represents a covariance matrix and `$|M|$` the detrminent of the matrix `$M$`.
+
+## numerical example 
+
+Let's say we have a population with mean $\mu=1$ and standard deviation `$\sigma_t = 2$`.
+
+
+
+
+
+```r
+set.seed(101)
+N = 10000
+mu = 1
+sigma_t = 2
+population = rnorm(N, mu, sigma_t) 
+```
+
+The noise distribution for each datum is drawn from a gamma distrbution
+
+
+```r
+noise_sd_shape = 20
+noise_sd_rate = 10
+noise_sd = rgamma(N, shape = noise_sd_shape, rate = noise_sd_rate)
+data.frame(noise_sd=noise_sd) %>% 
+  ggplot(aes(x=noise_sd)) + 
+  geom_histogram()
+```
+
+![plot of chunk unnamed-chunk-3](/post/2018-12-22-estimating-latent-gaussian-variable-with-maximum-likelihood-of-gaussian-product-integral_files/figure-html/unnamed-chunk-3-1.png)
+
+Now we can generate a synthetic set of measurements, applying this noise level.
+
+
+```r
+noise = sapply(1:N, function(i) {rnorm(1, 0, noise_sd[i])})
+measurements = population + noise
+```
+
+This sets up a log-likelihood function
+
+
+```r
+log_likelihood_factory = function(measurements, noise_sd) {
+  
+  function(params) {
+    t = params[1]
+    sigma_t = params[2]
+    logl_x = sum((measurements - t)**2 / (noise_sd ** 2 + sigma_t ** 2))
+    logl_c = sum(log(noise_sd ** 2 + sigma_t ** 2))
+    logl_x + logl_c
+  } 
+}
+```
+
+This finds the maximum likelihood values
+
+
+```r
+max_likelihood_solution = optim(c(1,1), logl_fun)
+#> Error in (function (par) : object 'logl_fun' not found
+max_likelihood_solution$par
+#> Error in eval(expr, envir, enclos): object 'max_likelihood_solution' not found
+```
+
+On the other hand if we look at the standard deviation of the measurements we get,
+
+
+```r
+sd(measurements)
+#> [1] 2.840141
+```
+
+If we take the mean of the noise standard deviation as an effective value and apply the result for the case where all `$\sigma_i$` are equal we get
+
+
+```r
+sqrt(var(measurements)  - mean(noise_sd**2))
+#> [1] 1.969332
+```
+
+which is not a bad approximation.
 
 

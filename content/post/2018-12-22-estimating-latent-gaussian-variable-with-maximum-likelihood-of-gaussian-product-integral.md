@@ -28,7 +28,7 @@ $$
 
 ## Estimate of population parameters with maximum likelihood
 
-Given a set of observations of `$X$`, we can use the above expression to estimate the population parameters, `$t$` and `$\sigma_t$`. In this case teh overall likelihood is the product of the individual likelihoods,
+Given a set of observations of `$X$`, we can use the above expression to estimate the population parameters, `$t$` and `$\sigma_t$`. In this case the overall likelihood is the product of the individual likelihoods,
 
 $$ L = \Pi_i P(x_i | t)$$
 Then the log-likelihood (actually -2 times the log-likelihood) is,
@@ -97,11 +97,11 @@ $$ l = - 2 \ln{L} =
 (x_i - t) (\Gamma_i + \Gamma_t)^{-1} (x_i - t)^{T} + \sum_i \ln{|\Gamma_i + \Gamma_t|}$$
 
 
-where `$\Gamma$` represents a covariance matrix and `$|M|$` the detrminent of the matrix `$M$`.
+where `$\Gamma$` represents a covariance matrix and `$|M|$` the determinant of the matrix `$M$`.
 
-## numerical example 
+## numerical example - 1-dimension
 
-Let's say we have a population with mean $\mu=1$ and standard deviation `$\sigma_t = 2$`.
+Let's say we have a population with mean `$\mu=1$` and standard deviation `$\sigma_t = 2$`.
 
 
 
@@ -115,7 +115,7 @@ sigma_t = 2
 population = rnorm(N, mu, sigma_t) 
 ```
 
-The noise distribution for each datum is drawn from a gamma distrbution
+The noise distribution for each datum is drawn from a gamma distribution
 
 
 ```r
@@ -157,10 +157,10 @@ This finds the maximum likelihood values
 
 
 ```r
+logl_fun = log_likelihood_factory(measurements, noise_sd)
 max_likelihood_solution = optim(c(1,1), logl_fun)
-#> Error in (function (par) : object 'logl_fun' not found
 max_likelihood_solution$par
-#> Error in eval(expr, envir, enclos): object 'max_likelihood_solution' not found
+#> [1] 1.038575 1.953789
 ```
 
 On the other hand if we look at the standard deviation of the measurements we get,
@@ -181,4 +181,133 @@ sqrt(var(measurements)  - mean(noise_sd**2))
 
 which is not a bad approximation.
 
+
+## numerical example - 2-dimensions
+
+The following defines the parameters for a 2-dimensional latent population variable, with a correlation of `$\rho = 0.5$`
+
+
+```r
+N = 10000
+mu1 = 1
+mu2 = 2
+s1 = 1
+s2 = 2
+rho = 0.5
+```
+
+To simulate a correlated 2-d random variable we generate an uncorrelated variable and then multiply by the right-factor of a Cholesky decomposition.
+
+
+```r
+set.seed(101)
+D = 2
+population_uncorr = matrix(rnorm(N * D, 0, 1), ncol=D)
+cor(population_uncorr)
+#>             [,1]        [,2]
+#> [1,] 1.000000000 0.005650561
+#> [2,] 0.005650561 1.000000000
+```
+
+
+```r
+cov_mat = matrix(c(s1*s1, rho*s1*s2, rho*s1*s2, s2*s2), ncol=2)
+right_chol = chol(cov_mat)
+population = population_uncorr %*% right_chol
+population[,1] = population[,1] + mu1
+population[,2] = population[,2] + mu2
+cor(population)
+#>           [,1]      [,2]
+#> [1,] 1.0000000 0.5036932
+#> [2,] 0.5036932 1.0000000
+```
+
+The noise distribution for each datum is drawn from uncorrelated gamma distributions
+
+
+```r
+noise_sd_shape = 20
+noise_sd_rate = 10
+noise_sd = matrix(rgamma(N * D, shape = noise_sd_shape, rate = noise_sd_rate), ncol=2)
+```
+
+Now we can generate a synthetic set of measurements, applying this noise level.
+
+
+```r
+noise = cbind(
+  sapply(1:N, function(i) {rnorm(1, 0, noise_sd[i,1])}),
+  sapply(1:N, function(i) {rnorm(1, 0, noise_sd[i,2])})
+)
+measurements = t( t(population) + t(noise))
+```
+
+We see that the noise applied to the population weakens the correlation
+
+
+```r
+df = data.frame(x1=measurements[,1], x2=measurements[,2], 
+                t1 = population[,1], t2=population[,2])
+df %>% ggplot(aes(x=t1, y=t2)) + geom_point() + geom_point(aes(x=x1, y=x2), color='orange1', alpha=0.2)
+```
+
+![plot of chunk unnamed-chunk-14](/post/2018-12-22-estimating-latent-gaussian-variable-with-maximum-likelihood-of-gaussian-product-integral_files/figure-html/unnamed-chunk-14-1.png)
+
+This sets up a log-likelihood function
+
+
+```r
+log_likelihood_factory_2d = function(measurements, noise_sd) {
+  
+  function(params) {
+    tvec = matrix(c(params[1], params[2]), ncol=2)
+    s1 = params[3]
+    s2 = params[4]
+    rho = params[5]
+    cov_t = matrix(c(s1*s1, rho * s1*s2, rho*s1*s2, s2*s2), ncol=2)
+    tmp = lapply(1:nrow(measurements), function(i) {
+        cov_i = matrix(c(noise_sd[i,1]**2, 0, 0, noise_sd[i,2]**2), ncol=2)
+        cov_mat = cov_i + cov_t
+        right_chol = chol(cov_mat)
+        right_chol_inv = solve(right_chol)
+        w = matrix(measurements[i,] - tvec, nrow=1) %*% right_chol_inv
+        logl_x = crossprod(t(w))
+        logl_c = determinant(cov_mat, logarithm = T)$modulus
+        list(logl_x=logl_x, logl_c = logl_c)
+    }) %>% bind_rows(
+      
+    )
+
+    sum(tmp)
+    
+  } 
+}
+```
+
+This finds the maximum likelihood values. I use the "L-BFGS-B" optimization method so I can explicitly put bounds on `$\rho$`.
+
+
+```r
+logl_fun = log_likelihood_factory_2d(measurements, noise_sd)
+max_likelihood_solution = optim(c(1, 1, 1, 1 , 0.5), logl_fun, 
+                                method = "L-BFGS-B", 
+                                lower = c(-Inf, -Inf, -Inf, -Inf, -1),
+                                upper = c(Inf, Inf, Inf, Inf, 1)
+                                )
+max_likelihood_solution$par
+#> [1] 1.0128679 2.0263088 0.9756733 1.9411863 0.5152542
+```
+
+The maximum likelihood method recovers the latent correlation of the population. On the other hand if we subtract a representative value for the data noise from the measurement sample covariance, we get a good approximation, as in the 1d case.
+
+
+```r
+v1_x = var(noise[,1])
+v2_x = var(noise[,2])
+pop_covar_estimate = var(measurements) - matrix(c(v1_x, 0, 0, v2_x), ncol=2)
+pop_covar_estimate
+#>           [,1]      [,2]
+#> [1,] 0.9472655 0.9734004
+#> [2,] 0.9734004 3.8450709
+```
 
